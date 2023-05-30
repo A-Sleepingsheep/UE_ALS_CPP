@@ -1,0 +1,147 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Character.h"
+
+#include "Interfaces/CameraInterface.h"
+#include "Interfaces/Starve_CharacterInterface.h"
+
+#include "StarveCharacterBase.generated.h"
+
+class UCameraComponent;
+class USpringArmComponent;
+
+
+UCLASS()
+class STARVE_API AStarveCharacterBase : public ACharacter, public ICameraInterface, public IStarve_CharacterInterface
+{
+	GENERATED_BODY()
+
+public:
+	// Sets default values for this character's properties
+	AStarveCharacterBase();
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+public:	
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+
+#pragma region CameraSystem
+	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		bool bRightShoulder; 
+
+	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		float ThirdPerson_FOV = 90.0f; /*第三人称FOV*/
+
+	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		float FirstPerson_FOV = 90.0f; /*第一人称FOV*/
+
+	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float LookRightRate = 1.25;/*Controller水平变化速度，主要用于视线水平变化*/
+
+	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float LookUpRate = 1.25;/*Controller竖直变化速度，主要用于视线竖直变化*/
+
+#pragma endregion
+
+private:
+	#pragma region EssentialInformation
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		FVector Acceleration;/*加速度*/
+
+	UPROPERTY(Category = CachedVariables, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FVector PreviousVelocity;/*前一时刻的速度*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		float Speed;/*XOY平面的速度*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		bool bIsMoving;/*判断是否正在移动*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		FRotator LastVelocityRotation;/*XY平面速度旋转*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		float MovementInputAmount;/*可以用来判断是否有输入，它是0-1之间的值*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		FRotator LastMovementInputRotation;/*输入的旋转*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		bool bHasMovementInput;/*判断是否有输入*/
+
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+		float AimYawRate;/*控制器Yaw旋转的速度*/
+
+	UPROPERTY(Category = CachedVariables, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		float PreviousAimYaw;/*前一时刻控制器Yaw方向旋转的速度*/
+	#pragma endregion
+
+	#pragma region CharacterEnums
+	EStarve_MovementState MovementState;  //当前状态
+	EStarve_MovementState PrevMovementState;//上一帧的状态
+	EStarve_MovementAction MovementAction;
+	EStarve_RotationMode RotationMode;
+	EStarve_Gait Gait; //主要状态
+	EStarve_ViewMode ViewMode;
+	EStarve_OverlayState OverlayState;
+	EStarve_Stance Stance;
+	#pragma endregion
+
+protected:
+	#pragma region CharacterMovementAndView
+	/**
+	* 根据Controller的Rotation获得方向
+	* 改写ALS系统的 GetControlledForward/RightVector
+	*/
+	const FVector GetControllerDirection(EAxis::Type InAxis);
+
+	/*人物移动*/
+	void Starve_PlayerMovementInput(bool IsForward);
+
+	/*修正输入对角线的信息*/
+	FVector2D FixDiagonalGamepadValus(float InX, float InY);
+
+	void MoveForward(float Value);
+
+	void MoveRight(float Value);
+
+	void Turn(float Value);
+
+	void LookUp(float Value);
+	#pragma endregion
+
+	#pragma region TickFunctions
+	/*计算角色运动所需要的数值*/
+	void SetEssentialValues();
+
+	/*计算角色加速度,原版角色加速度的变化是瞬间的，我们希望获得一个变化的加速度*/
+	FVector CalculateAcceleration();
+
+	/*储存前一帧的一些变量*/
+	void CacheValus();
+	#pragma endregion
+
+public:
+	#pragma region CameraInterface
+	virtual FVector Get_FP_CameraTarget() override;
+	virtual FTransform Get_TP_PivotTarget() override;
+	virtual float Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery& TraceChannel) override;
+	virtual bool Get_CameraParameters(float& TP_FOV, float& FP_FOV) override;
+	#pragma endregion
+
+
+	#pragma region CharacterInterfaceGerInformation
+	virtual FStarveCharacterState I_GetCurrentState() override; //返回枚举状态的信息
+	virtual FEssentialValues I_GetEssentialValues() override;  //将在Tick中获取的主要信息传递出去
+	#pragma endregion
+};
