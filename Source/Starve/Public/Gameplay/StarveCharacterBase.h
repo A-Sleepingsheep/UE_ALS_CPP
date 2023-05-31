@@ -34,6 +34,8 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
+
 
 #pragma region CameraSystem
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -86,6 +88,32 @@ private:
 		float PreviousAimYaw;/*前一时刻控制器Yaw方向旋转的速度*/
 	#pragma endregion
 
+
+	#pragma region AnimRelativeVariablies
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		UAnimInstance* MainAnimInstance;
+
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UDataTable* MovementModelDT; //DataTable
+
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FMovementSettings_State MovementSettings_State;
+
+	/*下面三个参数是一开始的期望参数*/
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		EStarve_Gait DesiredGait = EStarve_Gait::Running;
+
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		EStarve_RotationMode DesiredRotationMode = EStarve_RotationMode::LookingDirection;
+
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		EStarve_Stance DesiredStance= EStarve_Stance::Standing;
+
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FRotator TargetRotation;
+	#pragma endregion
+
+
 	#pragma region CharacterEnums
 	EStarve_MovementState MovementState;  //当前状态
 	EStarve_MovementState PrevMovementState;//上一帧的状态
@@ -118,6 +146,10 @@ protected:
 	void Turn(float Value);
 
 	void LookUp(float Value);
+
+	void JumpAction();//跳跃操作
+
+	void OnCharacterMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0);
 	#pragma endregion
 
 	#pragma region TickFunctions
@@ -142,6 +174,30 @@ public:
 
 	#pragma region CharacterInterfaceGerInformation
 	virtual FStarveCharacterState I_GetCurrentState() override; //返回枚举状态的信息
-	virtual FEssentialValues I_GetEssentialValues() override;  //将在Tick中获取的主要信息传递出去
+	virtual FEssentialValues I_GetEssentialValues() override;  //将在Tick中获取的主要信息传递出去	
+
+	virtual void I_SetMovementState(EStarve_MovementState NewMovementState) override;/*设置角色运动状态*/
+	virtual void I_SetMovementAction(EStarve_MovementAction NewMovementAction) override;/*设置角色移动时正在干什么*/
+	virtual void I_SetRotationMode(EStarve_RotationMode NewRotationMode) override;	/*设置摄像机旋转模式*/
+	virtual void I_SetGait(EStarve_Gait NewGait) override;	/*设置主状态*/
+	virtual void I_SetViewMode(EStarve_ViewMode NewViewMode) override;	/*设置视角模式*/
+	virtual void I_SetOverlayState(EStarve_OverlayState NewOverlayState) override;	/*设置叠加状态*/
+	#pragma endregion
+
+	#pragma region MovementStateChange
+	void OnMovementStateChanged(EStarve_MovementState NewMovementState);
+	void OnMovementActionChanged(EStarve_MovementAction NewMovementAction);
+	void OnRotationModeChanged(EStarve_RotationMode NewRotationMode);
+	void OnGaitChanged(EStarve_Gait NewGait);
+	void OnViewModeChanged(EStarve_ViewMode NewViewMode);
+	void OnOverlayStateChanged(EStarve_OverlayState NewOverlayState);
+	#pragma endregion
+
+	#pragma region OnBeginPlayFunctions
+	void OnBeginPlay(); //BeginPlay初始化
+	void SetMovementModel(); //初始化设置角色的枚举值
+	void UpdateCharacterMovement(); //每帧更新角色在地面上的移动
+	EStarve_Gait GetAllowGait();//获得当前状态下允许的行走Gait
+	bool CanSprint(); //能否进行冲刺
 	#pragma endregion
 };

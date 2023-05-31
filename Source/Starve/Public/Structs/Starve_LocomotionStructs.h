@@ -4,14 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Engine/DataTable.h"
 
 #include "Enums/Starve_LocomotionEnum.h"
 
 #include "Starve_LocomotionStructs.generated.h"
 
-/* 
-* Starve_CharacterInterface 的 I_GetCurrentState() 接口的返回值
-*/
+class UPrimitiveComponent;
+class UAnimMontage;
+class UCurveVector;
+class UCurveFloat;
+class UAnimSequenceBase;
+
+#pragma region Starve_CharacterInterface_Return
 USTRUCT(BlueprintType)
 struct FStarveCharacterState
 {
@@ -85,7 +90,214 @@ public:
 	/*瞄准Yaw旋转速度*/
 	float AimYawRate;
 };
+#pragma endregion
 
+#pragma region ALS_Structs
+USTRUCT(BlueprintType)
+struct FStarve_ComponentAndTransform
+{
+	GENERATED_BODY()
+
+public:
+	FTransform Transform;
+	UPrimitiveComponent* PrimitiveComponent;
+};
+
+
+USTRUCT(BlueprintType)
+struct FCameraSettings
+{
+	GENERATED_BODY()
+
+public:
+	float TargetAimLength;
+	FVector SocketOffset;
+	float LagSpeed;
+	float RotationLagSpeed;
+	bool bDoCollisionTest;
+};
+
+USTRUCT(BlueprintType)
+struct FCameraSettings_Gait
+{
+	GENERATED_BODY()
+
+public:
+	FCameraSettings Walking;
+	FCameraSettings Running;
+	FCameraSettings Sprinting;
+	FCameraSettings Crouching;
+};
+
+USTRUCT(BlueprintType)
+struct FCameraSettings_State
+{
+	GENERATED_BODY()
+
+public:
+	FCameraSettings_Gait VelocityDirection;
+	FCameraSettings_Gait LookingDirection;
+	FCameraSettings_Gait Aiming;
+};
+
+USTRUCT(BlueprintType)
+struct FDynamicMontageParams
+{
+	GENERATED_BODY()
+
+public:
+	UAnimSequenceBase* Animation;
+	float BlendInTime;
+	float BlendOutTime;
+	float PlayRate;
+	float StartTime;
+};
+
+USTRUCT(BlueprintType)
+struct FLeanAmount
+{
+	GENERATED_BODY()
+
+public:
+	float LR;
+	float FB;
+};
+
+USTRUCT(BlueprintType)
+struct FMantle_Asset
+{
+	GENERATED_BODY()
+
+public:
+	class UAnimMontage* AnimMontage;
+	UCurveVector* PositionCorrectionCurve;
+	FVector StartingOffset;
+	float LowHeight;
+	float LowPlayRate;
+	float LowStartPosition;
+	float HighHeight;
+	float HighPlayRate;
+	float HighStartPosition;
+};
+
+USTRUCT(BlueprintType)
+struct FMantle_Params
+{
+	GENERATED_BODY()
+
+public:
+	UAnimMontage* AnimMontage;
+	UCurveVector* PositionCorrectionCurve;
+	float PlayRate;
+	float StartingPosition;
+	FVector StartingOffset;
+};
+
+USTRUCT(BlueprintType)
+struct FMantle_TraceSettings
+{
+	GENERATED_BODY()
+
+public:
+	float MaxLedgeHeight;
+	float MinLedgeHeight;
+	float ReachDistance;
+	float ForwardTraceRadius;
+	float DownwardTracrRadius;
+};
+
+USTRUCT(BlueprintType)
+struct FMovementSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WalkSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float RunSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SprintSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UCurveVector* MovementCurve;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UCurveFloat* RotationRateCurve;
+};
+
+USTRUCT(BlueprintType)
+struct FMovementSettings_Stance
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FMovementSettings Standing;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FMovementSettings Crouching;
+};
+
+
+USTRUCT(BlueprintType, Blueprintable)
+struct FMovementSettings_State :public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FMovementSettings_Stance VelocityDirection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FMovementSettings_Stance LookingDirection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FMovementSettings_Stance Aiming;
+};
+
+USTRUCT(BlueprintType)
+struct FRotationPlace_Asset
+{
+	GENERATED_BODY()
+
+public:
+	UAnimSequenceBase* Animation;
+	FName SlotName;
+	float SlowTurnRate;
+	float FastTurnRate;
+	float SlowPlayRate;
+	float FastPlayRate;
+};
+
+USTRUCT(BlueprintType)
+struct FTurnInPlace_Asset
+{
+	GENERATED_BODY()
+
+public:
+	UAnimSequenceBase* Animation;
+	float AnimatedAngle;
+	FName SlotName;
+	float PlayRate;
+	bool  bScaleTurnAngle;
+};
+
+USTRUCT(BlueprintType)
+struct FVelocityBlend
+{
+	GENERATED_BODY()
+
+public:
+	float F;
+	float B;
+	float L;
+	float  R;
+};
+
+#pragma endregion
 
 /**
  * 

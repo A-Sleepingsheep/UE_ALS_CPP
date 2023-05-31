@@ -9,7 +9,7 @@
 
 /*
 	Starve_LocomotionEnum
-	角色行走的状态
+	角色正常行走的状态：正常移动，跑步，冲刺
 */
 UENUM(BlueprintType)
 enum class EStarve_Gait : uint8 {
@@ -90,7 +90,7 @@ enum class EStarve_Stance : uint8 {
 	Standing,
 
 	/*蹲伏*/
-	Crouch
+	Crouching
 };
 
 
@@ -158,7 +158,7 @@ enum class EMantleType : uint8 {
 };
 
 
-/*摄像机的旋转模式*/
+/**/
 UENUM(BlueprintType)
 enum class EMovementDirecction : uint8 {
 	Forward,

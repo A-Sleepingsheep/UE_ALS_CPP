@@ -7,9 +7,12 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 
 #include "Components/InteractiveComponent.h"
+#include "Libraries/Starve_MacroLibrary.h"
 
+#pragma region Override
 // Sets default values
 AStarveCharacterBase::AStarveCharacterBase()
 {
@@ -59,7 +62,7 @@ AStarveCharacterBase::AStarveCharacterBase()
 	checkf(SkeleMesh.Succeeded(), TEXT("Can't find TankRightTrack Mesh."));
 	this->GetMesh()->SetSkeletalMesh(SkeleMesh.Object);
 	this->GetMesh()->SetRelativeLocationAndRotation(FVector(0, 0, -92), FRotator(0, -90, 0));
-	
+
 }
 
 // Called when the game starts or when spawned
@@ -67,6 +70,8 @@ void AStarveCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	//
+	OnBeginPlay();
 }
 
 // Called every frame
@@ -74,8 +79,13 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	/*第一步，计算只要信息*/
-	SetEssentialValues();
+	/*第一步*/
+	SetEssentialValues(); //获得主要的角色信息
+	if (MovementState == EStarve_MovementState::Grounded) {
+		UpdateCharacterMovement(); //更新角色在地面上的移动信息
+
+	}
+
 
 	/*第二步，保存当前的某些信息*/
 
@@ -93,12 +103,19 @@ void AStarveCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis("Turn", this, &AStarveCharacterBase::Turn);
 	PlayerInputComponent->BindAxis("LookUp", this, &AStarveCharacterBase::LookUp);
 	//跳跃
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AStarveCharacterBase::JumpAction);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 }
 
-#pragma region CharacterMoveDefinition
+void AStarveCharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+	//调用自己的实现
+	OnCharacterMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+}
+#pragma endregion
 
+#pragma region CharacterMoveDefinition
 const FVector AStarveCharacterBase::GetControllerDirection(EAxis::Type InAxis)
 {
 	FRotator YawRotation(0, Controller->GetControlRotation().Yaw, 0);
@@ -119,20 +136,23 @@ FVector2D AStarveCharacterBase::FixDiagonalGamepadValus(float InX, float InY)
 
 void AStarveCharacterBase::Starve_PlayerMovementInput(bool IsForward)
 {
-	float forward = InputComponent->GetAxisValue(FName("MoveForward"));
-	float right = InputComponent->GetAxisValue(FName("MoveRight"));
-	FVector2D fix_value = FixDiagonalGamepadValus(forward, right);
-	float scale_value;
-	FVector direction;
-	if (IsForward) {
-		scale_value = fix_value.X;
-		direction = GetControllerDirection(EAxis::X);
+	//只有在地面和空中可以以WASD方式移动
+	if (MovementState == EStarve_MovementState::Grounded || MovementState == EStarve_MovementState::InAir) {
+		float forward = InputComponent->GetAxisValue(FName("MoveForward"));
+		float right = InputComponent->GetAxisValue(FName("MoveRight"));
+		FVector2D fix_value = FixDiagonalGamepadValus(forward, right);
+		float scale_value;
+		FVector direction;
+		if (IsForward) {
+			scale_value = fix_value.X;
+			direction = GetControllerDirection(EAxis::X);
+		}
+		else {
+			scale_value = fix_value.Y;
+			direction = GetControllerDirection(EAxis::Y);
+		}
+		AddMovementInput(direction, scale_value);
 	}
-	else {
-		scale_value = fix_value.Y;
-		direction = GetControllerDirection(EAxis::Y);
-	}
-	AddMovementInput(direction, scale_value);
 }
 
 
@@ -150,11 +170,35 @@ void AStarveCharacterBase::MoveRight(float Value)
 	}
 }
 
+void AStarveCharacterBase::JumpAction()
+{
+	if (MovementAction == EStarve_MovementAction::None) {
+		if (MovementState == EStarve_MovementState::None || MovementState == EStarve_MovementState::Grounded || MovementState == EStarve_MovementState::InAir) {
+			if (MovementState == EStarve_MovementState::Grounded) {
+				Jump();
+			}else if(MovementState == EStarve_MovementState::InAir) {
+			}
+		}
+	}
+}
+
+void AStarveCharacterBase::OnCharacterMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+	EMovementMode mm = GetCharacterMovement()->MovementMode;
+	IStarve_CharacterInterface* ic = Cast<IStarve_CharacterInterface>(this);
+	if (ic != nullptr) {
+		if (mm == EMovementMode::MOVE_Walking || mm == EMovementMode::MOVE_NavWalking) {
+			ic->I_SetMovementState(EStarve_MovementState::Grounded);
+		}
+		else if (mm == EMovementMode::MOVE_Falling) {
+			ic->I_SetMovementState(EStarve_MovementState::InAir);
+		}
+	}
+}
 #pragma endregion
 
 
 #pragma region CameraViewDefinition
-
 void AStarveCharacterBase::Turn(float Value)
 {
 	AddControllerYawInput(Value * LookRightRate);
@@ -248,7 +292,6 @@ FStarveCharacterState AStarveCharacterBase::AStarveCharacterBase::I_GetCurrentSt
 	return starve_character_state;
 }
 
-
 FEssentialValues AStarveCharacterBase::I_GetEssentialValues() {
 	FEssentialValues essential_values;
 
@@ -263,5 +306,218 @@ FEssentialValues AStarveCharacterBase::I_GetEssentialValues() {
 	essential_values.AimYawRate = this->AimYawRate;
 
 	return essential_values;
+}
+
+void AStarveCharacterBase::I_SetMovementState(EStarve_MovementState NewMovementState)
+{
+	if (UStarve_MacroLibrary::ML_IsDifferent<EStarve_MovementState>(NewMovementState, this->MovementState)) {
+		OnMovementStateChanged(NewMovementState);
+	}
+}
+
+void AStarveCharacterBase::I_SetMovementAction(EStarve_MovementAction NewMovementAction) {
+	if (UStarve_MacroLibrary::ML_IsDifferent<EStarve_MovementAction>(NewMovementAction, this->MovementAction)) {
+		OnMovementActionChanged(NewMovementAction);
+	}
+}
+
+void AStarveCharacterBase::I_SetRotationMode(EStarve_RotationMode NewRotationMode)
+{
+	if (UStarve_MacroLibrary::ML_IsDifferent<EStarve_RotationMode>(NewRotationMode, this->RotationMode)) {
+		OnRotationModeChanged(NewRotationMode);
+	}
+}
+
+void AStarveCharacterBase::I_SetGait(EStarve_Gait NewGait) {
+	if (UStarve_MacroLibrary::ML_IsDifferent<EStarve_Gait>(NewGait, this->Gait)) {
+		OnGaitChanged(NewGait);
+	}
+}
+
+void AStarveCharacterBase::I_SetViewMode(EStarve_ViewMode NewViewMode) {
+	if (UStarve_MacroLibrary::ML_IsDifferent<EStarve_ViewMode>(NewViewMode, this->ViewMode)) {
+		OnViewModeChanged(NewViewMode);
+	}
+}
+
+void AStarveCharacterBase::I_SetOverlayState(EStarve_OverlayState NewOverlayState) {
+	if (UStarve_MacroLibrary::ML_IsDifferent<EStarve_OverlayState>(NewOverlayState, this->OverlayState)) {
+		OnOverlayStateChanged(NewOverlayState);
+	}
+}
+#pragma endregion
+
+#pragma region CharacterMovementChanged
+void AStarveCharacterBase::OnMovementStateChanged(EStarve_MovementState NewMovementState)
+{
+	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_MovementState>(NewMovementState, this->MovementState, this->PrevMovementState);
+
+}
+
+void AStarveCharacterBase::OnMovementActionChanged(EStarve_MovementAction NewMovementAction)
+{
+	EStarve_MovementAction PrevMovementAction;
+	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_MovementAction>(NewMovementAction, this->MovementAction, PrevMovementAction);
+
+}
+
+void AStarveCharacterBase::OnRotationModeChanged(EStarve_RotationMode NewRotationMode)
+{
+	EStarve_RotationMode PrevRotationMode;
+	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_RotationMode>(NewRotationMode, this->RotationMode, PrevRotationMode);
+}
+
+void AStarveCharacterBase::OnGaitChanged(EStarve_Gait NewGait)
+{
+	EStarve_Gait PrevGait;
+	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_Gait>(NewGait, this->Gait, PrevGait);
+
+}
+
+void AStarveCharacterBase::OnViewModeChanged(EStarve_ViewMode NewViewMode)
+{
+	EStarve_ViewMode PrevViewMode;
+	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_ViewMode>(NewViewMode, this->ViewMode, PrevViewMode);
+
+}
+
+void AStarveCharacterBase::OnOverlayStateChanged(EStarve_OverlayState NewOverlayState)
+{
+	EStarve_OverlayState PrevOverlayState;
+	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_OverlayState>(NewOverlayState, this->OverlayState, PrevOverlayState);
+
+}
+#pragma endregion
+
+#pragma region BeginPlayFunctions
+void AStarveCharacterBase::OnBeginPlay()
+{
+	/*第一步*/
+	GetMesh()->AddTickPrerequisiteActor(this);//添加先决条件的TickActor，确保ABP是有效的
+
+	/*第二步*/
+	//获取并保存动画实例
+	UAnimInstance* ai = GetMesh()->GetAnimInstance();
+	if (IsValid(ai)) {
+		this->MainAnimInstance = ai;
+	}
+
+	/*第三步*/
+	//获取DataTable并获取初始Normal状态下的MovementSettings_State
+	SetMovementModel();
+
+	/*第四步*/
+	//根据结构体信息设置属性
+	OnGaitChanged(this->DesiredGait);
+	OnRotationModeChanged(this->DesiredRotationMode);
+	OnViewModeChanged(ViewMode);
+	OnOverlayStateChanged(OverlayState);
+	switch (DesiredStance)
+	{
+		case EStarve_Stance::Standing: {
+			UnCrouch();
+			break;
+		}
+		case EStarve_Stance::Crouching: {
+			Crouch();
+			break;
+		}
+	}
+
+	/*第五步*/
+	//初始化一些旋转值
+	FRotator rotator = GetActorRotation();
+	TargetRotation = rotator;
+	LastVelocityRotation = rotator;
+	LastMovementInputRotation = rotator;
+}
+
+
+void AStarveCharacterBase::SetMovementModel()
+{
+	UDataTable* dt = LoadObject<UDataTable>(NULL,TEXT("DataTable'/Game/MyALS_CPP/Data/DataTable/Starve_MovementModel_DT.Starve_MovementModel_DT'"));
+	if (dt != NULL) {
+		MovementModelDT = dt;
+		FMovementSettings_State* ms_s = dt->FindRow<FMovementSettings_State>(FName("Normal"),"MovementSettings_State");
+		if (ms_s != NULL) {
+			MovementSettings_State = *ms_s;
+		}
+	}
+}
+
+void AStarveCharacterBase::UpdateCharacterMovement()
+{
+	/*第一步*/
+	EStarve_Gait allowgait = GetAllowGait(); //允许的Gait，因为期望的Gait跟能达到的Gait是由差异的
+
+	/*第二步*/
+	//决定真正的Gait
+
+	//EStarve_Gait actualgait;//当前Gait
+}
+
+EStarve_Gait AStarveCharacterBase::GetAllowGait()
+{
+	EStarve_Gait gait;
+	if (Stance == EStarve_Stance::Standing) {
+		//站立
+		if (RotationMode == EStarve_RotationMode::VelocityDirection || RotationMode == EStarve_RotationMode::LookingDirection) {
+			//站立 + 旋转(Look或Velovity)
+			switch (DesiredGait)
+			{
+				case EStarve_Gait::Walking: {
+					//站立 + 旋转(Look或Velovity) + 期望是Walking = Walking
+					gait = EStarve_Gait::Walking;
+				}
+				case EStarve_Gait::Running: {
+					//站立 + 旋转(Look或Velovity) + 期望是Running = Walking
+					gait = EStarve_Gait::Running;
+				}
+				case EStarve_Gait::Sprinting: {
+					//站立 + 旋转(Look或Velovity) + 期望是Sprinting = Walking
+					gait = CanSprint() ? EStarve_Gait::Sprinting : EStarve_Gait::Running;
+				}
+			}
+		}
+		else {
+			//站立状态下瞄准
+			if (DesiredGait == EStarve_Gait::Walking)
+				gait = EStarve_Gait::Walking; //站立 + 旋转(瞄准) + 期望是Walking = Walking
+			else
+				gait = EStarve_Gait::Running;//站立 + 旋转(瞄准) + 期望是Running = Running
+		}
+	}
+	else {
+		//下蹲
+		if (DesiredGait == EStarve_Gait::Walking)
+			gait = EStarve_Gait::Walking; //下蹲 + 期望Walking = Walking
+		else
+			gait = EStarve_Gait::Running;//下蹲 + 其它期望Gait = Running
+	}
+
+	return gait;
+}
+
+bool AStarveCharacterBase::CanSprint()
+{
+	if (bHasMovementInput) {
+		//有运动输入
+		switch (RotationMode)
+		{
+			case EStarve_RotationMode::VelocityDirection:
+				return MovementInputAmount > 0.9 ? true : false; //输入大于0.9可以冲刺
+			case EStarve_RotationMode::LookingDirection: {
+				//有运动输入，但是在Looking的Rotation模式需要进行进一步判断
+				FVector current_ac = GetCharacterMovement()->GetCurrentAcceleration();
+				FRotator rotationx = current_ac.ToOrientationRotator();
+				FRotator delta_r = UKismetMathLibrary::NormalizedDeltaRotator(rotationx, GetControlRotation());
+				//限制可以进行冲刺的方向（只有当你的视角跟角色冲刺的方向夹角小于50°时才可以进行冲刺，即你不可以直接按A或D进行冲刺）
+				return (MovementInputAmount > 0.9 && FMath::Abs(delta_r.Yaw) < 50.f) ? true : false;
+			}
+			case EStarve_RotationMode::Aiming:
+				return false; //有运动输入，但是在瞄准状态下不允许冲刺
+		}
+	}
+	return false;
 }
 #pragma endregion
