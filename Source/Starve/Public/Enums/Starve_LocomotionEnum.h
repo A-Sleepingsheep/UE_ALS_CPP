@@ -167,6 +167,13 @@ enum class EMovementDirecction : uint8 {
 };
 
 
+enum class EDoWhtileReturn : uint8 {
+	WhileTrue,
+	WhileFalse,
+	ChangeToTrue,
+	ChangeToFalse,
+};
+
 /*仅仅是为了编辑器有个点击的位置*/
 UCLASS()
 class STARVE_API UStarve_LocomotionEnum : public UObject

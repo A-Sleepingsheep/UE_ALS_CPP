@@ -16,12 +16,13 @@ class STARVE_API UStarve_MacroLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 	
 public:
-	/*ÊÇ·ñ²»ÏàÍ¬*/
+	/*æ˜¯å¦ä¸ç›¸åŒ*/
 	template<typename T>
 	static bool ML_IsDifferent(const T A, const T B);
 
 	template<typename T>
 	static void ML_SetPreviousAndNewValue(const T NewValue, T& NewTarget, T& Previous);
+
 };
 
 template<typename T>

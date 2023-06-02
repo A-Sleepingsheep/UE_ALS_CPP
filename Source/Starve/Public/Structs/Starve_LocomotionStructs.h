@@ -26,31 +26,31 @@ public:
 
 	FStarveCharacterState();
 
-	/*×Ô´øµÄÒÆ¶¯×´Ì¬*/
+	/*è‡ªå¸¦çš„ç§»åŠ¨çŠ¶æ€*/
 	EMovementMode PawnMovementMode;
 
-	/*µ±Ç°ÔË¶¯×´Ì¬*/
+	/*å½“å‰è¿åŠ¨çŠ¶æ€*/
 	EStarve_MovementState MovementState;
 
-	/*ÉÏÒ»Ê±¿ÌµÄÔË¶¯×´Ì¬*/
+	/*ä¸Šä¸€æ—¶åˆ»çš„è¿åŠ¨çŠ¶æ€*/
 	EStarve_MovementState PrevMovementState;
 
-	/*¶ÔÓ¦µÄ¶¯»­ÃÉÌ«Ææ*/
+	/*å¯¹åº”çš„åŠ¨ç”»è’™å¤ªå¥‡*/
 	EStarve_MovementAction MovementAction;
 
-	/*ÉãÏñ»úĞı×ªÄ£Ê½*/
+	/*æ‘„åƒæœºæ—‹è½¬æ¨¡å¼*/
 	EStarve_RotationMode RotationMode;
 
-	/*µ±Ç°µÄĞĞ×ßÔË¶¯×´Ì¬*/
+	/*å½“å‰çš„è¡Œèµ°è¿åŠ¨çŠ¶æ€*/
 	EStarve_Gait ActualGait;
 
-	/*ĞĞ×ß×´Ì¬µÄ·Ö×´Ì¬*/
+	/*è¡Œèµ°çŠ¶æ€çš„åˆ†çŠ¶æ€*/
 	EStarve_Stance ActualStance;
 
-	/*ÊÓ½ÇÄ£Ê½*/
+	/*è§†è§’æ¨¡å¼*/
 	EStarve_ViewMode ViewMode;
 
-	/*µş¼ÓÌ¬*/
+	/*å åŠ æ€*/
 	EStarve_OverlayState OverlayState;
 };
 
@@ -63,31 +63,31 @@ struct FEssentialValues
 public:
 	FEssentialValues();
 
-	/*ËÙ¶È*/
+	/*é€Ÿåº¦*/
 	FVector Velocity;
 
-	/*¼ÓËÙ¶È*/
+	/*åŠ é€Ÿåº¦*/
 	FVector Acceleration;
 
-	/*ÊäÈë*/
+	/*è¾“å…¥*/
 	FVector MovementInput;
 
-	/*ÊÇ·ñÔÚÒÆ¶¯*/
+	/*æ˜¯å¦åœ¨ç§»åŠ¨*/
 	bool bIsMoving;
 
-	/*ÊÇ·ñÔÚÊäÈë*/
+	/*æ˜¯å¦åœ¨è¾“å…¥*/
 	bool bHasMovementInput;
 
-	/*XYÆ½ÃæµÄËÙ¶È*/
+	/*XYå¹³é¢çš„é€Ÿåº¦*/
 	float Speed;
 
-	/*ÊäÈëÖµ*/
+	/*è¾“å…¥å€¼*/
 	float MovementInputAmount;
 
-	/*Ãé×¼Ğı×ª*/
+	/*ç„å‡†æ—‹è½¬*/
 	FRotator AimingRatation;
 
-	/*Ãé×¼YawĞı×ªËÙ¶È*/
+	/*ç„å‡†Yawæ—‹è½¬é€Ÿåº¦*/
 	float AimYawRate;
 };
 #pragma endregion
@@ -159,6 +159,8 @@ struct FLeanAmount
 	GENERATED_BODY()
 
 public:
+	FLeanAmount() :LR(0.f), FB(0.f) {};
+	FLeanAmount(float lr, float fb) :LR(lr), FB(fb) {};
 	float LR;
 	float FB;
 };
@@ -294,7 +296,7 @@ public:
 	float F;
 	float B;
 	float L;
-	float  R;
+	float R;
 };
 
 #pragma endregion
