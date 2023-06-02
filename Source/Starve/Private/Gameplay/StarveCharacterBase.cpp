@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Gameplay/StarveCharacterBase.h"
@@ -8,6 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Curves/CurveVector.h"
 
 #include "Components/InteractiveComponent.h"
 #include "Libraries/Starve_MacroLibrary.h"
@@ -16,7 +17,7 @@
 // Sets default values
 AStarveCharacterBase::AStarveCharacterBase()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	bRightShoulder = true;
@@ -57,11 +58,16 @@ AStarveCharacterBase::AStarveCharacterBase()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); 
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 
-	
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkeleMesh(TEXT("SkeletalMesh'/Game/MyALS_CPP/CharacterAssets/Mesh/Proxy.Proxy'"));
 	checkf(SkeleMesh.Succeeded(), TEXT("Can't find TankRightTrack Mesh."));
 	this->GetMesh()->SetSkeletalMesh(SkeleMesh.Object);
 	this->GetMesh()->SetRelativeLocationAndRotation(FVector(0, 0, -92), FRotator(0, -90, 0));
+
+	//MovementSettings的初始化
+	CurrentMovementSettings.WalkSpeed = 165.f;
+	CurrentMovementSettings.RunSpeed = 350.f;
+	CurrentMovementSettings.SprintSpeed = 600.f;
+
 
 }
 
@@ -86,7 +92,9 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 
 	}
 
+	CacheValus();
 
+	UKismetSystemLibrary::PrintString(this, FString::SanitizeFloat(Speed),true,false,FLinearColor::Blue,0.f);
 	/*第二步，保存当前的某些信息*/
 
 
@@ -105,6 +113,12 @@ void AStarveCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	//跳跃
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AStarveCharacterBase::JumpAction);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	//冲刺
+	PlayerInputComponent->BindAction("SprintAction", IE_Pressed, this, &AStarveCharacterBase::SprintAction);
+	PlayerInputComponent->BindAction("SprintAction", IE_Released, this, &AStarveCharacterBase::StopSprintAction);
+
+	//步行
+	PlayerInputComponent->BindAction("WalkAction", IE_Pressed, this, &AStarveCharacterBase::WalkAction);
 }
 
 void AStarveCharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
@@ -177,10 +191,42 @@ void AStarveCharacterBase::JumpAction()
 			if (MovementState == EStarve_MovementState::Grounded) {
 				Jump();
 			}else if(MovementState == EStarve_MovementState::InAir) {
+
 			}
 		}
 	}
 }
+
+
+void AStarveCharacterBase::SprintAction()
+{
+	DesiredGait = EStarve_Gait::Sprinting;
+}
+
+
+void AStarveCharacterBase::StopSprintAction()
+{
+	DesiredGait = EStarve_Gait::Running;
+}
+
+
+void AStarveCharacterBase::WalkAction()
+{
+	switch (DesiredGait)
+	{
+		case EStarve_Gait::Walking: {
+			DesiredGait = EStarve_Gait::Running;
+			break;
+		}
+		case EStarve_Gait::Running:{
+			DesiredGait = EStarve_Gait::Walking;
+			break;
+		}
+		default:
+			break;
+	}
+}
+
 
 void AStarveCharacterBase::OnCharacterMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
 {
@@ -437,10 +483,10 @@ void AStarveCharacterBase::SetMovementModel()
 {
 	UDataTable* dt = LoadObject<UDataTable>(NULL,TEXT("DataTable'/Game/MyALS_CPP/Data/DataTable/Starve_MovementModel_DT.Starve_MovementModel_DT'"));
 	if (dt != NULL) {
-		MovementModelDT = dt;
+		MovementModel_DT = dt;
 		FMovementSettings_State* ms_s = dt->FindRow<FMovementSettings_State>(FName("Normal"),"MovementSettings_State");
 		if (ms_s != NULL) {
-			MovementSettings_State = *ms_s;
+			MovementData = *ms_s;
 		}
 	}
 }
@@ -451,14 +497,19 @@ void AStarveCharacterBase::UpdateCharacterMovement()
 	EStarve_Gait allowgait = GetAllowGait(); //允许的Gait，因为期望的Gait跟能达到的Gait是由差异的
 
 	/*第二步*/
-	//决定真正的Gait
+	//决定真正的Gait并赋值给动画蓝图用的Gait
+	EStarve_Gait actualgait = GetActualGait(allowgait);
+	if (Gait != actualgait) {
+		I_SetGait(actualgait);
+	}
 
-	//EStarve_Gait actualgait;//当前Gait
+	UpdateDynamicMovementSettings(allowgait);
+
 }
 
 EStarve_Gait AStarveCharacterBase::GetAllowGait()
 {
-	EStarve_Gait gait;
+	EStarve_Gait gait = EStarve_Gait::Walking;
 	if (Stance == EStarve_Stance::Standing) {
 		//站立
 		if (RotationMode == EStarve_RotationMode::VelocityDirection || RotationMode == EStarve_RotationMode::LookingDirection) {
@@ -468,31 +519,31 @@ EStarve_Gait AStarveCharacterBase::GetAllowGait()
 				case EStarve_Gait::Walking: {
 					//站立 + 旋转(Look或Velovity) + 期望是Walking = Walking
 					gait = EStarve_Gait::Walking;
+					break;
 				}
 				case EStarve_Gait::Running: {
 					//站立 + 旋转(Look或Velovity) + 期望是Running = Walking
 					gait = EStarve_Gait::Running;
+					break;
 				}
 				case EStarve_Gait::Sprinting: {
 					//站立 + 旋转(Look或Velovity) + 期望是Sprinting = Walking
 					gait = CanSprint() ? EStarve_Gait::Sprinting : EStarve_Gait::Running;
+					break;
 				}
 			}
 		}
 		else {
 			//站立状态下瞄准
-			if (DesiredGait == EStarve_Gait::Walking)
-				gait = EStarve_Gait::Walking; //站立 + 旋转(瞄准) + 期望是Walking = Walking
-			else
-				gait = EStarve_Gait::Running;//站立 + 旋转(瞄准) + 期望是Running = Running
+			//站立 + 旋转(瞄准) + 期望是Walking = Walking
+			//站立 + 旋转(瞄准) + 期望是Running = Running
+			gait = (DesiredGait == EStarve_Gait::Walking) ? EStarve_Gait::Walking : EStarve_Gait::Running;
 		}
 	}
 	else {
-		//下蹲
-		if (DesiredGait == EStarve_Gait::Walking)
-			gait = EStarve_Gait::Walking; //下蹲 + 期望Walking = Walking
-		else
-			gait = EStarve_Gait::Running;//下蹲 + 其它期望Gait = Running
+		//下蹲 //下蹲 + 期望Walking = Walking
+		//下蹲 + 其它期望Gait = Running
+		gait = (DesiredGait == EStarve_Gait::Walking) ? EStarve_Gait::Walking : EStarve_Gait::Running;
 	}
 
 	return gait;
@@ -520,4 +571,99 @@ bool AStarveCharacterBase::CanSprint()
 	}
 	return false;
 }
+
+EStarve_Gait AStarveCharacterBase::GetActualGait(EStarve_Gait AllowedGait)
+{
+	EStarve_Gait gait;
+	//加10.f是因为浮点数不是精确的，加上10对判断影响不大
+	if (Speed >= CurrentMovementSettings.RunSpeed + 10.f) {
+		switch (AllowedGait) {
+			case EStarve_Gait::Walking:
+			case EStarve_Gait::Running: {
+				gait = EStarve_Gait::Running;
+				break;
+			}
+			default:
+				gait = EStarve_Gait::Sprinting;
+		}
+	}
+	else {
+		gait = (Speed >= CurrentMovementSettings.WalkSpeed + 10.f) ? EStarve_Gait::Running : EStarve_Gait::Walking;
+	}
+	return gait;
+}
+
+
+void AStarveCharacterBase::UpdateDynamicMovementSettings(EStarve_Gait AllowedGait)
+{
+	CurrentMovementSettings = GetTargetMovementSettings();
+
+	/*对上面拿到的数据进行操作*/
+	/*先对角色的移动速度进行赋值*/
+	float speed = 0.f;
+	switch (AllowedGait) {
+		case EStarve_Gait::Walking: {
+			speed = CurrentMovementSettings.WalkSpeed;
+			break;
+		}
+		case EStarve_Gait::Running: {
+			speed = CurrentMovementSettings.RunSpeed;
+			break;
+		}
+		case EStarve_Gait::Sprinting: {
+			speed = CurrentMovementSettings.SprintSpeed;
+			break;
+		}
+	}
+	GetCharacterMovement()->MaxWalkSpeed = speed;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = speed;
+
+	/*通过曲线上的信息给角色一些运动信息赋值*/
+	float mapspeed = GetMappedSpeed();
+	FVector curvevector = CurrentMovementSettings.MovementCurve->GetVectorValue(speed);
+	GetCharacterMovement()->MaxAcceleration = curvevector.X;//加速度
+	GetCharacterMovement()->BrakingDecelerationWalking = curvevector.Y;//制动减速
+	GetCharacterMovement()->GroundFriction = curvevector.Z;//地面摩擦力
+
+}
+
+
+FMovementSettings AStarveCharacterBase::GetTargetMovementSettings()
+{
+	FMovementSettings ms;
+
+	switch (RotationMode) {
+		case EStarve_RotationMode::VelocityDirection: {
+			ms = (Stance == EStarve_Stance::Standing) ? MovementData.VelocityDirection.Standing : MovementData.VelocityDirection.Crouching;
+		}
+		case EStarve_RotationMode::LookingDirection: {
+			ms = (Stance == EStarve_Stance::Standing) ? MovementData.LookingDirection.Standing : MovementData.LookingDirection.Crouching;
+		}
+		case EStarve_RotationMode::Aiming: {
+			ms = (Stance == EStarve_Stance::Standing) ? MovementData.Aiming.Standing : MovementData.Aiming.Crouching;
+		}
+	}
+
+	return ms;
+}
+
+
+float AStarveCharacterBase::GetMappedSpeed()
+{
+	float speed;
+	float mapwalkspeed, maprunspeed, mapsprintspeed;
+	/*下面的目的时间Speed的数值映射到0-3之间，方便去曲线中取值*/
+	/*0-1*/
+	mapwalkspeed = FMath::GetMappedRangeValueClamped(FVector2D(0, CurrentMovementSettings.WalkSpeed), FVector2D(0, 1), Speed);
+	/*1-2*/
+	maprunspeed = FMath::GetMappedRangeValueClamped(FVector2D(CurrentMovementSettings.WalkSpeed,CurrentMovementSettings.RunSpeed), FVector2D(1, 2), Speed);
+	/*2-3*/
+	mapsprintspeed = FMath::GetMappedRangeValueClamped(FVector2D(CurrentMovementSettings.RunSpeed,CurrentMovementSettings.SprintSpeed), FVector2D(2,3), Speed);
+
+	speed = (Speed > CurrentMovementSettings.WalkSpeed) ? maprunspeed : mapwalkspeed;
+	speed = (Speed > CurrentMovementSettings.RunSpeed) ? mapsprintspeed : speed;
+
+	return speed;
+}
+
 #pragma endregion

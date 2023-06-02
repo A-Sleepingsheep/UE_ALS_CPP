@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -85,5 +85,5 @@ private:
 	#pragma endregion
 
 
-	void UpdateCharacterInfo(); /*¸üĞÂ½ÇÉ«ĞÅÏ¢*/
+	void UpdateCharacterInfo(); /*æ›´æ–°è§’è‰²ä¿¡æ¯*/
 };

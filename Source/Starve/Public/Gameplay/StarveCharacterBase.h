@@ -42,50 +42,50 @@ public:
 		bool bRightShoulder; 
 
 	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		float ThirdPerson_FOV = 90.0f; /*µÚÈıÈË³ÆFOV*/
+		float ThirdPerson_FOV = 90.0f; /*ç¬¬ä¸‰äººç§°FOV*/
 
 	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		float FirstPerson_FOV = 90.0f; /*µÚÒ»ÈË³ÆFOV*/
+		float FirstPerson_FOV = 90.0f; /*ç¬¬ä¸€äººç§°FOV*/
 
 	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	float LookRightRate = 1.25;/*ControllerË®Æ½±ä»¯ËÙ¶È£¬Ö÷ÒªÓÃÓÚÊÓÏßË®Æ½±ä»¯*/
+	float LookRightRate = 1.25;/*Controlleræ°´å¹³å˜åŒ–é€Ÿåº¦ï¼Œä¸»è¦ç”¨äºè§†çº¿æ°´å¹³å˜åŒ–*/
 
 	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	float LookUpRate = 1.25;/*ControllerÊúÖ±±ä»¯ËÙ¶È£¬Ö÷ÒªÓÃÓÚÊÓÏßÊúÖ±±ä»¯*/
+	float LookUpRate = 1.25;/*Controllerç«–ç›´å˜åŒ–é€Ÿåº¦ï¼Œä¸»è¦ç”¨äºè§†çº¿ç«–ç›´å˜åŒ–*/
 
 #pragma endregion
 
 private:
 	#pragma region EssentialInformation
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		FVector Acceleration;/*¼ÓËÙ¶È*/
+		FVector Acceleration;/*åŠ é€Ÿåº¦*/
 
 	UPROPERTY(Category = CachedVariables, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FVector PreviousVelocity;/*Ç°Ò»Ê±¿ÌµÄËÙ¶È*/
+		FVector PreviousVelocity;/*å‰ä¸€æ—¶åˆ»çš„é€Ÿåº¦*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		float Speed;/*XOYÆ½ÃæµÄËÙ¶È*/
+		float Speed;/*XOYå¹³é¢çš„é€Ÿåº¦*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		bool bIsMoving;/*ÅĞ¶ÏÊÇ·ñÕıÔÚÒÆ¶¯*/
+		bool bIsMoving;/*åˆ¤æ–­æ˜¯å¦æ­£åœ¨ç§»åŠ¨*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		FRotator LastVelocityRotation;/*XYÆ½ÃæËÙ¶ÈĞı×ª*/
+		FRotator LastVelocityRotation;/*XYå¹³é¢é€Ÿåº¦æ—‹è½¬*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		float MovementInputAmount;/*¿ÉÒÔÓÃÀ´ÅĞ¶ÏÊÇ·ñÓĞÊäÈë£¬ËüÊÇ0-1Ö®¼äµÄÖµ*/
+		float MovementInputAmount;/*å¯ä»¥ç”¨æ¥åˆ¤æ–­æ˜¯å¦æœ‰è¾“å…¥ï¼Œå®ƒæ˜¯0-1ä¹‹é—´çš„å€¼*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		FRotator LastMovementInputRotation;/*ÊäÈëµÄĞı×ª*/
+		FRotator LastMovementInputRotation;/*è¾“å…¥çš„æ—‹è½¬*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		bool bHasMovementInput;/*ÅĞ¶ÏÊÇ·ñÓĞÊäÈë*/
+		bool bHasMovementInput;/*åˆ¤æ–­æ˜¯å¦æœ‰è¾“å…¥*/
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		float AimYawRate;/*¿ØÖÆÆ÷YawĞı×ªµÄËÙ¶È*/
+		float AimYawRate;/*æ§åˆ¶å™¨Yawæ—‹è½¬çš„é€Ÿåº¦*/
 
 	UPROPERTY(Category = CachedVariables, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		float PreviousAimYaw;/*Ç°Ò»Ê±¿Ì¿ØÖÆÆ÷Yaw·½ÏòĞı×ªµÄËÙ¶È*/
+		float PreviousAimYaw;/*å‰ä¸€æ—¶åˆ»æ§åˆ¶å™¨Yawæ–¹å‘æ—‹è½¬çš„é€Ÿåº¦*/
 	#pragma endregion
 
 
@@ -94,12 +94,12 @@ private:
 		UAnimInstance* MainAnimInstance;
 
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UDataTable* MovementModelDT; //DataTable
+	UDataTable* MovementModel_DT; //DataTable
 
 	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMovementSettings_State MovementSettings_State;
+		FMovementSettings_State MovementData;
 
-	/*ÏÂÃæÈı¸ö²ÎÊıÊÇÒ»¿ªÊ¼µÄÆÚÍû²ÎÊı*/
+	/*ä¸‹é¢ä¸‰ä¸ªå‚æ•°æ˜¯ä¸€å¼€å§‹çš„æœŸæœ›å‚æ•°*/
 	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		EStarve_Gait DesiredGait = EStarve_Gait::Running;
 
@@ -111,15 +111,18 @@ private:
 
 	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		FRotator TargetRotation;
+
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FMovementSettings CurrentMovementSettings;
 	#pragma endregion
 
 
 	#pragma region CharacterEnums
-	EStarve_MovementState MovementState;  //µ±Ç°×´Ì¬
-	EStarve_MovementState PrevMovementState;//ÉÏÒ»Ö¡µÄ×´Ì¬
+	EStarve_MovementState MovementState;  //å½“å‰çŠ¶æ€
+	EStarve_MovementState PrevMovementState;//ä¸Šä¸€å¸§çš„çŠ¶æ€
 	EStarve_MovementAction MovementAction;
 	EStarve_RotationMode RotationMode;
-	EStarve_Gait Gait; //Ö÷Òª×´Ì¬
+	EStarve_Gait Gait; //ä¸»è¦çŠ¶æ€
 	EStarve_ViewMode ViewMode;
 	EStarve_OverlayState OverlayState;
 	EStarve_Stance Stance;
@@ -128,15 +131,15 @@ private:
 protected:
 	#pragma region CharacterMovementAndView
 	/**
-	* ¸ù¾İControllerµÄRotation»ñµÃ·½Ïò
-	* ¸ÄĞ´ALSÏµÍ³µÄ GetControlledForward/RightVector
+	* æ ¹æ®Controllerçš„Rotationè·å¾—æ–¹å‘
+	* æ”¹å†™ALSç³»ç»Ÿçš„ GetControlledForward/RightVector
 	*/
 	const FVector GetControllerDirection(EAxis::Type InAxis);
 
-	/*ÈËÎïÒÆ¶¯*/
+	/*äººç‰©ç§»åŠ¨*/
 	void Starve_PlayerMovementInput(bool IsForward);
 
-	/*ĞŞÕıÊäÈë¶Ô½ÇÏßµÄĞÅÏ¢*/
+	/*ä¿®æ­£è¾“å…¥å¯¹è§’çº¿çš„ä¿¡æ¯*/
 	FVector2D FixDiagonalGamepadValus(float InX, float InY);
 
 	void MoveForward(float Value);
@@ -147,19 +150,27 @@ protected:
 
 	void LookUp(float Value);
 
-	void JumpAction();//ÌøÔ¾²Ù×÷
+	void JumpAction();//è·³è·ƒæ“ä½œ
+
+	void SprintAction();//å†²åˆº
+
+	void StopSprintAction();//åœæ­¢å†²åˆº
+
+	void WalkAction();//å†²åˆº
+
+	void StopWalkAction();//åœæ­¢å†²åˆº
 
 	void OnCharacterMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0);
 	#pragma endregion
 
 	#pragma region TickFunctions
-	/*¼ÆËã½ÇÉ«ÔË¶¯ËùĞèÒªµÄÊıÖµ*/
+	/*è®¡ç®—è§’è‰²è¿åŠ¨æ‰€éœ€è¦çš„æ•°å€¼*/
 	void SetEssentialValues();
 
-	/*¼ÆËã½ÇÉ«¼ÓËÙ¶È,Ô­°æ½ÇÉ«¼ÓËÙ¶ÈµÄ±ä»¯ÊÇË²¼äµÄ£¬ÎÒÃÇÏ£Íû»ñµÃÒ»¸ö±ä»¯µÄ¼ÓËÙ¶È*/
+	/*è®¡ç®—è§’è‰²åŠ é€Ÿåº¦,åŸç‰ˆè§’è‰²åŠ é€Ÿåº¦çš„å˜åŒ–æ˜¯ç¬é—´çš„ï¼Œæˆ‘ä»¬å¸Œæœ›è·å¾—ä¸€ä¸ªå˜åŒ–çš„åŠ é€Ÿåº¦*/
 	FVector CalculateAcceleration();
 
-	/*´¢´æÇ°Ò»Ö¡µÄÒ»Ğ©±äÁ¿*/
+	/*å‚¨å­˜å‰ä¸€å¸§çš„ä¸€äº›å˜é‡*/
 	void CacheValus();
 	#pragma endregion
 
@@ -173,15 +184,15 @@ public:
 
 
 	#pragma region CharacterInterfaceGerInformation
-	virtual FStarveCharacterState I_GetCurrentState() override; //·µ»ØÃ¶¾Ù×´Ì¬µÄĞÅÏ¢
-	virtual FEssentialValues I_GetEssentialValues() override;  //½«ÔÚTickÖĞ»ñÈ¡µÄÖ÷ÒªĞÅÏ¢´«µİ³öÈ¥	
+	virtual FStarveCharacterState I_GetCurrentState() override; //è¿”å›æšä¸¾çŠ¶æ€çš„ä¿¡æ¯
+	virtual FEssentialValues I_GetEssentialValues() override;  //å°†åœ¨Tickä¸­è·å–çš„ä¸»è¦ä¿¡æ¯ä¼ é€’å‡ºå»	
 
-	virtual void I_SetMovementState(EStarve_MovementState NewMovementState) override;/*ÉèÖÃ½ÇÉ«ÔË¶¯×´Ì¬*/
-	virtual void I_SetMovementAction(EStarve_MovementAction NewMovementAction) override;/*ÉèÖÃ½ÇÉ«ÒÆ¶¯Ê±ÕıÔÚ¸ÉÊ²Ã´*/
-	virtual void I_SetRotationMode(EStarve_RotationMode NewRotationMode) override;	/*ÉèÖÃÉãÏñ»úĞı×ªÄ£Ê½*/
-	virtual void I_SetGait(EStarve_Gait NewGait) override;	/*ÉèÖÃÖ÷×´Ì¬*/
-	virtual void I_SetViewMode(EStarve_ViewMode NewViewMode) override;	/*ÉèÖÃÊÓ½ÇÄ£Ê½*/
-	virtual void I_SetOverlayState(EStarve_OverlayState NewOverlayState) override;	/*ÉèÖÃµş¼Ó×´Ì¬*/
+	virtual void I_SetMovementState(EStarve_MovementState NewMovementState) override;/*è®¾ç½®è§’è‰²è¿åŠ¨çŠ¶æ€*/
+	virtual void I_SetMovementAction(EStarve_MovementAction NewMovementAction) override;/*è®¾ç½®è§’è‰²ç§»åŠ¨æ—¶æ­£åœ¨å¹²ä»€ä¹ˆ*/
+	virtual void I_SetRotationMode(EStarve_RotationMode NewRotationMode) override;	/*è®¾ç½®æ‘„åƒæœºæ—‹è½¬æ¨¡å¼*/
+	virtual void I_SetGait(EStarve_Gait NewGait) override;	/*è®¾ç½®ä¸»è¡Œèµ°çŠ¶æ€*/
+	virtual void I_SetViewMode(EStarve_ViewMode NewViewMode) override;	/*è®¾ç½®è§†è§’æ¨¡å¼*/
+	virtual void I_SetOverlayState(EStarve_OverlayState NewOverlayState) override;	/*è®¾ç½®å åŠ çŠ¶æ€*/
 	#pragma endregion
 
 	#pragma region MovementStateChange
@@ -194,10 +205,14 @@ public:
 	#pragma endregion
 
 	#pragma region OnBeginPlayFunctions
-	void OnBeginPlay(); //BeginPlay³õÊ¼»¯
-	void SetMovementModel(); //³õÊ¼»¯ÉèÖÃ½ÇÉ«µÄÃ¶¾ÙÖµ
-	void UpdateCharacterMovement(); //Ã¿Ö¡¸üĞÂ½ÇÉ«ÔÚµØÃæÉÏµÄÒÆ¶¯
-	EStarve_Gait GetAllowGait();//»ñµÃµ±Ç°×´Ì¬ÏÂÔÊĞíµÄĞĞ×ßGait
-	bool CanSprint(); //ÄÜ·ñ½øĞĞ³å´Ì
+	void OnBeginPlay(); //BeginPlayåˆå§‹åŒ–
+	void SetMovementModel(); //åˆå§‹åŒ–è®¾ç½®è§’è‰²çš„æšä¸¾å€¼
+	void UpdateCharacterMovement(); //æ¯å¸§æ›´æ–°è§’è‰²åœ¨åœ°é¢ä¸Šçš„ç§»åŠ¨
+	EStarve_Gait GetAllowGait();//è·å¾—å½“å‰çŠ¶æ€ä¸‹å…è®¸çš„è¡Œèµ°Gait
+	bool CanSprint(); //èƒ½å¦è¿›è¡Œå†²åˆº
+	EStarve_Gait GetActualGait(EStarve_Gait AllowedGait);//è·å¾—çœŸæ­£å¯ä»¥ç”¨çš„Gait
+	void UpdateDynamicMovementSettings(EStarve_Gait AllowedGait);//å®æ—¶æ›´æ–°è§’è‰²çš„Movementæ•°æ®ï¼Œå°±æ˜¯å°†æ›²çº¿ä¸­çš„ä¿¡æ¯åº”ç”¨åˆ°è§’è‰²
+	FMovementSettings GetTargetMovementSettings();//è·å¾—å¯¹åº”æ—‹è½¬æ¨¡å¼ä¸‹MovementSettingsé‡Œé¢çš„æ•°æ®
+	float GetMappedSpeed();//è·å–æ›²çº¿å¯¹åº”çš„é€Ÿåº¦
 	#pragma endregion
 };

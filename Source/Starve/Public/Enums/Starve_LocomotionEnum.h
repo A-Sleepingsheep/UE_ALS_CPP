@@ -6,63 +6,62 @@
 #include "UObject/NoExportTypes.h"
 #include "Starve_LocomotionEnum.generated.h"
 
-
 /*
 	Starve_LocomotionEnum
-	½ÇÉ«Õı³£ĞĞ×ßµÄ×´Ì¬£ºÕı³£ÒÆ¶¯£¬ÅÜ²½£¬³å´Ì
+	è§’è‰²æ­£å¸¸è¡Œèµ°çš„çŠ¶æ€ï¼šæ­£å¸¸ç§»åŠ¨ï¼Œè·‘æ­¥ï¼Œå†²åˆº
 */
 UENUM(BlueprintType)
 enum class EStarve_Gait : uint8 {
-	//Õı³£ĞĞ×ß
+	//æ­£å¸¸è¡Œèµ°
 	Walking,
 
-	//ÅÜ²½
+	//è·‘æ­¥
 	Running,
 
-	//³å´Ì
+	//å†²åˆº
 	Sprinting
 };
 
-/*½ÇÉ«ÒÆ¶¯Ê±µÄ¶¯×÷£¬¼ÇÂ¼ÒÆ¶¯Ê±ÕıÔÚ¸ÉµÄÊÂ*/
+/*è§’è‰²ç§»åŠ¨æ—¶çš„åŠ¨ä½œï¼Œè®°å½•ç§»åŠ¨æ—¶æ­£åœ¨å¹²çš„äº‹*/
 UENUM(BlueprintType)
 enum class EStarve_MovementAction : uint8 {
-	/*ÎŞ£¬µ±²»ĞèÒªMontageÊ±µÄ×´Ì¬£¬ÀıÈçĞĞ×ß¡¢ÅÜ²½¡¢³å´Ì*/
+	/*æ— ï¼Œå½“ä¸éœ€è¦Montageæ—¶çš„çŠ¶æ€ï¼Œä¾‹å¦‚è¡Œèµ°ã€è·‘æ­¥ã€å†²åˆº*/
 	None,
 
-	/*·­Ô¾µÍÇ½Ê±µÄ×´Ì¬*/
+	/*ç¿»è·ƒä½å¢™æ—¶çš„çŠ¶æ€*/
 	LowMantle,
 
-	/*·­Ô¾¸ßÇ½Ê±µÄ×´Ì¬*/
+	/*ç¿»è·ƒé«˜å¢™æ—¶çš„çŠ¶æ€*/
 	HighMantle,
 
-	/*·­¹ö*/
+	/*ç¿»æ»š*/
 	Rolling,
 
-	/*ÆğÉí*/
+	/*èµ·èº«*/
 	GettingUp,
 
 };
 
-/*ÔË¶¯Ê±µÄËù´¦×´Ì¬,¼ÇÂ¼ÊÇÔÚ¿ÕÖĞ£¬µØÃæµÈ*/
+/*è¿åŠ¨æ—¶çš„æ‰€å¤„çŠ¶æ€,è®°å½•æ˜¯åœ¨ç©ºä¸­ï¼Œåœ°é¢ç­‰*/
 UENUM(BlueprintType)
 enum class EStarve_MovementState : uint8 {
 	None,
 
-	/*ÔÚµØÃæ*/
+	/*åœ¨åœ°é¢*/
 	Grounded,
 
-	/*ÔÚ¿ÕÖĞ*/
+	/*åœ¨ç©ºä¸­*/
 	InAir,
 
-	/*ÕıÔÚ·­Ç½*/
+	/*æ­£åœ¨ç¿»å¢™*/
 	Mantling,
 
-	/*²¼ÍŞÍŞÏµÍ³*/
+	/*å¸ƒå¨ƒå¨ƒç³»ç»Ÿ*/
 	Ragdoll
 };
 
 
-/*¼ÇÂ¼µş¼Ó×´Ì¬£¬ÀıÈç¶Ë×ÅÇ¹×ßÂ·µÈ*/
+/*è®°å½•å åŠ çŠ¶æ€ï¼Œä¾‹å¦‚ç«¯ç€æªèµ°è·¯ç­‰*/
 UENUM(BlueprintType)
 enum class EStarve_OverlayState : uint8 {
 	Default,
@@ -70,48 +69,48 @@ enum class EStarve_OverlayState : uint8 {
 };
 
 
-/*ÉãÏñ»úµÄĞı×ªÄ£Ê½*/
+/*æ‘„åƒæœºçš„æ—‹è½¬æ¨¡å¼*/
 UENUM(BlueprintType)
 enum class EStarve_RotationMode : uint8 {
 	VelocityDirection,
 
-	/*Æ½Ê±*/
+	/*å¹³æ—¶*/
 	LookingDirection,
 
-	/*Ãé×¼Ê±*/
+	/*ç„å‡†æ—¶*/
 	Aiming
 };
 
 
-/*ĞĞ×ß×´Ì¬ÏÂµÄ×´Ì¬£¬ÀıÈçÕı³£»ò¶×·ü*/
+/*è¡Œèµ°çŠ¶æ€ä¸‹çš„çŠ¶æ€ï¼Œä¾‹å¦‚æ­£å¸¸æˆ–è¹²ä¼*/
 UENUM(BlueprintType)
 enum class EStarve_Stance : uint8 {
-	/*Õ¾Á¢*/
+	/*ç«™ç«‹*/
 	Standing,
 
-	/*¶×·ü*/
+	/*è¹²ä¼*/
 	Crouching
 };
 
 
-/*ÊÓ½ÇÄ£Ê½£¬µÚÒ»»òµÚÈıÈË³Æ*/
+/*è§†è§’æ¨¡å¼ï¼Œç¬¬ä¸€æˆ–ç¬¬ä¸‰äººç§°*/
 UENUM(BlueprintType)
 enum class EStarve_ViewMode : uint8 {
-	/*µÚÈıÈË³Æ*/
+	/*ç¬¬ä¸‰äººç§°*/
 	ThirdPerson,
 
-	/*µÚÒ»ÈË³Æ*/
+	/*ç¬¬ä¸€äººç§°*/
 	FirstPerson
 };
 
 
-/*¶¯»­ÌØÕ÷Ê¾Àı*/
+/*åŠ¨ç”»ç‰¹å¾ç¤ºä¾‹*/
 UENUM(BlueprintType)
 enum class EAnimFeatureExample : uint8 {
-	/*²½¾à»ìºÏ*/
+	/*æ­¥è·æ··åˆ*/
 	StrideBlending,
 
-	/*µş¼ÓÌ¬*/
+	/*å åŠ æ€*/
 	AdditiveLeaning,
 
 	/**/
@@ -119,7 +118,7 @@ enum class EAnimFeatureExample : uint8 {
 };
 
 
-/*½Å²½×´Ì¬*/
+/*è„šæ­¥çŠ¶æ€*/
 UENUM(BlueprintType)
 enum class EFootstepType : uint8 {
 	Step,
@@ -129,7 +128,7 @@ enum class EFootstepType : uint8 {
 };
 
 
-/*½øÈëĞĞ×ßÇ°µÄ×´Ì¬*/
+/*è¿›å…¥è¡Œèµ°å‰çš„çŠ¶æ€*/
 UENUM(BlueprintType)
 enum class EGroundedEntryState : uint8 {
 	None,
@@ -137,7 +136,7 @@ enum class EGroundedEntryState : uint8 {
 };
 
 
-/*¿ç²½¹Ç÷ÀµÄ³¯Ïò*/
+/*è·¨æ­¥éª¨éª¼çš„æœå‘*/
 UENUM(BlueprintType)
 enum class EHipsDirection : uint8 {
 	F,
@@ -149,7 +148,7 @@ enum class EHipsDirection : uint8 {
 };
 
 
-/*ÄÄÖÖÅÊÅÀ*/
+/*å“ªç§æ”€çˆ¬*/
 UENUM(BlueprintType)
 enum class EMantleType : uint8 {
 	HighMantle,
@@ -168,7 +167,7 @@ enum class EMovementDirecction : uint8 {
 };
 
 
-/*½ö½öÊÇÎªÁË±à¼­Æ÷ÓĞ¸öµã»÷µÄÎ»ÖÃ*/
+/*ä»…ä»…æ˜¯ä¸ºäº†ç¼–è¾‘å™¨æœ‰ä¸ªç‚¹å‡»çš„ä½ç½®*/
 UCLASS()
 class STARVE_API UStarve_LocomotionEnum : public UObject
 {
