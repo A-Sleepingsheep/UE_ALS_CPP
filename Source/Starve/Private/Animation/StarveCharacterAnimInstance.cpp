@@ -80,7 +80,7 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 							/*第二步，是否能够原地转向*/
 							if (CanTurnInPlace()) {
-
+								TurnInPlaceCheck();
 							}
 
 							/*第三步，是否动态过渡*/
@@ -347,7 +347,7 @@ float UStarveCharacterAnimInstance::CalculateCrouchingPlayRate()
 
 EMovementDirecction UStarveCharacterAnimInstance::CalculateMovementDirection()
 {
-	EMovementDirecction md;
+	EMovementDirecction md = EMovementDirecction::Forward;
 
 	switch (Gait)
 	{
@@ -518,5 +518,38 @@ void UStarveCharacterAnimInstance::UpdateAimingValues()
 
 void UStarveCharacterAnimInstance::TurnInPlace(const FRotator& TargetRotation, float PlayRateScale, float StartTime, bool bOverrideCurrent)
 {
+	/*1、计算旋转角度*/
+	float turnangle = UKismetMathLibrary::NormalizedDeltaRotator(TargetRotation, CharacterRef->GetActorRotation()).Yaw;
+
+	/*2、根据判断获得正确的 FTurnInPlace_Asset（决定播放哪个旋转的动画以及其它的一些信息，是在AnimationBlueprint中给定的）*/
+	//大于130进行180旋转，小于进行90旋转
+	FTurnInPlace_Asset TargetTurnAsset;
+	if (FMath::Abs(turnangle) < Turn180Threshold) {
+		//判断左右
+		if (turnangle < 0) {
+			TargetTurnAsset = Stance == EStarve_Stance::Standing ? N_TurnIP_L90 : CLF_TurnIP_L90;
+		}
+		else {
+			TargetTurnAsset = Stance == EStarve_Stance::Standing ? N_TurnIP_R90 : CLF_TurnIP_R90;
+		}
+	}
+	else {
+		if (turnangle < 0) {
+			TargetTurnAsset = Stance == EStarve_Stance::Standing ? N_TurnIP_L180 : CLF_TurnIP_L180;
+		}
+		else {
+			TargetTurnAsset = Stance == EStarve_Stance::Standing ? N_TurnIP_R180 : CLF_TurnIP_R180;
+		}
+	}
+
+	/*3、根据上一步获取到的信息进行播放操作*/
+	//IsPlayingSlotAnimation(TargetTurnAsset.Animation, TargetTurnAsset.SlotName)判断是不是正在播放这个动画
+	if (bOverrideCurrent || !IsPlayingSlotAnimation(TargetTurnAsset.Animation, TargetTurnAsset.SlotName)) {
+		//将插槽动画作为蒙太奇播放，
+		PlaySlotAnimationAsDynamicMontage(TargetTurnAsset.Animation, TargetTurnAsset.SlotName, 0.2f, 0.2f, TargetTurnAsset.PlayRate * PlayRateScale, 1, 0.f, StartTime);
+		RotationScale = TargetTurnAsset.bScaleTurnAngle ? 
+			(turnangle / TargetTurnAsset.AnimatedAngle) * TargetTurnAsset.PlayRate * PlayRateScale : 
+			TargetTurnAsset.PlayRate * PlayRateScale;
+	}
 
 }

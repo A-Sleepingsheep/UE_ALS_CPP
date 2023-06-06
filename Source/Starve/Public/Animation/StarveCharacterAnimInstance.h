@@ -201,6 +201,36 @@ private:
 	UPROPERTY(Category = "TurnInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float MaxAngleDelay = 0.f;//最大角度转向前延迟时间
 
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset N_TurnIP_L90;//站立左转90
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset N_TurnIP_R90;//站立右转90
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset N_TurnIP_L180;//站立左转180
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset N_TurnIP_R180;//站立右转180
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset CLF_TurnIP_L90;//蹲伏左转90
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset CLF_TurnIP_R90;//蹲伏右转90
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset CLF_TurnIP_L180;//蹲伏左转180
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTurnInPlace_Asset CLF_TurnIP_R180;//蹲伏右转180
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float Turn180Threshold = 130.f;//根据这个阈值判断是否旋转180还是90
+
+	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RotationScale;//原地转向的缩放
+
 	//MovementSystem
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/

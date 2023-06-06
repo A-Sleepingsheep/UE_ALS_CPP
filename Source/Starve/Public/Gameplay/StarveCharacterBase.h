@@ -223,4 +223,5 @@ public:
 	void SmoothCharacterRotation(const FRotator& Target,float TargetInterpSpeed,float ActorInterpSpeed);
 	float CalculateGroundedRotationRate();//计算人物在地面上的旋转速度
 	float GetAnimCurveValue(FName CurveName);//获得动画曲线值
+	void LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed);//限制Rotation
 };

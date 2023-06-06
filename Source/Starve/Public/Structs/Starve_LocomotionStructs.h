@@ -284,12 +284,22 @@ struct FTurnInPlace_Asset
 	GENERATED_BODY()
 
 public:
-	UAnimSequenceBase* Animation;
-	float AnimatedAngle;
-	FName SlotName;
-	float PlayRate;
-	bool  bScaleTurnAngle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimSequenceBase* Animation;//转向动画
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AnimatedAngle;//动画能够旋转多少角度
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName SlotName;//插槽名称
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PlayRate;//播放速度
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool  bScaleTurnAngle;//是否缩放角度
 };
+
 
 USTRUCT(BlueprintType)
 struct FVelocityBlend

@@ -676,30 +676,43 @@ void AStarveCharacterBase::UpdateGroundedRotation()
 	//MovementAction用于判断有没有处于蒙太奇状态下
 	if (MovementAction == EStarve_MovementAction::None) {
 		if (CanUpdateMovingRotation()) {
+			//需要进行每帧更新旋转
 			switch (RotationMode)
 			{
-			case EStarve_RotationMode::VelocityDirection:
+				case EStarve_RotationMode::VelocityDirection:
 
-				break;
-			case EStarve_RotationMode::LookingDirection: {
-				float rotationrate = CalculateGroundedRotationRate();
-				//冲刺状态下的yaw跟走路奔跑有所不同
-				float ratationyaw = (Gait == EStarve_Gait::Sprinting) ? LastVelocityRotation.Yaw : GetControlRotation().Yaw + GetAnimCurveValue(FName("YawOffset"));
-				SmoothCharacterRotation(FRotator(0, ratationyaw, 0), 500.f, rotationrate);
-			}
-				break;
-			case EStarve_RotationMode::Aiming:
-				break;
-			}
+					break;
+				case EStarve_RotationMode::LookingDirection: {
+					float rotationrate = CalculateGroundedRotationRate();
+					//冲刺状态下的yaw跟走路奔跑有所不同
+					float ratationyaw = (Gait == EStarve_Gait::Sprinting) ? LastVelocityRotation.Yaw : GetControlRotation().Yaw + GetAnimCurveValue(FName("YawOffset"));
+					SmoothCharacterRotation(FRotator(0, ratationyaw, 0), 500.f, rotationrate);
+					break;
+				}
+				case EStarve_RotationMode::Aiming:
+					break;
+				}
 		}
 		else {
-
+			//不需要进行每帧进行旋转更新
+			//如果是第一人陈或者第三人称是Aiming状态的话需要对Rotation进行限制
+			if (ViewMode == EStarve_ViewMode::FirstPerson || (ViewMode ==EStarve_ViewMode::ThirdPerson && RotationMode == EStarve_RotationMode::Aiming)) {
+				LimitRotation(-100.f, 100.f, 20.f);
+			}
+			float curvevalue_rotationamount = GetAnimCurveValue(FName("RotationAmount"));
+			if (FMath::Abs(curvevalue_rotationamount) > 0.001f) {
+				//(1.f / 30.f)跟动画的帧数有关，我们的动画是1秒30帧
+				float ry = curvevalue_rotationamount * (UGameplayStatics::GetWorldDeltaSeconds(this) / (1.f / 30.f));
+				AddActorWorldRotation(FRotator(0.f, ry, 0.f));
+				TargetRotation = GetActorRotation();
+			}
 		}
 	}
 	else if (MovementAction == EStarve_MovementAction::Rolling) {
 
 	}
 }
+
 
 bool AStarveCharacterBase::CanUpdateMovingRotation()
 {
@@ -730,4 +743,17 @@ float AStarveCharacterBase::GetAnimCurveValue(FName CurveName)
 		return MainAnimInstance->GetCurveValue(CurveName);
 	}
 	return 0.f;
+}
+
+void AStarveCharacterBase::LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed)
+{
+	//根据Controller和Character的旋转Yaw差量
+	FRotator control_r = GetControlRotation();
+	FRotator char_r = GetActorRotation();
+	float delta_ry = UKismetMathLibrary::NormalizedDeltaRotator(control_r, char_r).Yaw;
+	//范围在范围内不进行限制，在范围外进行限制
+	if (!UKismetMathLibrary::InRange_FloatFloat(delta_ry, AimYawMin, AimYawMax, true, true)) {
+		float target_ry = delta_ry > 0.f ? control_r.Yaw + AimYawMin : control_r.Yaw + AimYawMax;
+		SmoothCharacterRotation(FRotator(0, target_ry, 0), 0.f, InterpSpeed);
+	}
 }
