@@ -9,6 +9,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Curves/CurveVector.h"
+#include "Kismet/GameplayStatics.h"
+
 
 #include "Components/InteractiveComponent.h"
 #include "Libraries/Starve_MacroLibrary.h"
@@ -23,7 +25,7 @@ AStarveCharacterBase::AStarveCharacterBase()
 	bRightShoulder = true;
 
 	GetCapsuleComponent()->InitCapsuleSize(30.0f, 90.0f);
-	//设置碰撞预设为StarveCharacter
+	//设置碰撞预设标签为StarveCharacter
 	GetCapsuleComponent()->SetCollisionProfileName(FName("StarveCharacter"));
 
 	//添加角色标签
@@ -54,14 +56,15 @@ AStarveCharacterBase::AStarveCharacterBase()
 	GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;  //能蹲伏
 	GetCharacterMovement()->GetNavAgentPropertiesRef().bCanFly = true;  //可飞行
 
-	GetCharacterMovement()->bOrientRotationToMovement = true; 
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); 
-	GetCharacterMovement()->JumpZVelocity = 600.f;
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 360.f, 0.0f); 
+	GetCharacterMovement()->JumpZVelocity = 420.f;
 
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkeleMesh(TEXT("SkeletalMesh'/Game/MyALS_CPP/CharacterAssets/Mesh/Proxy.Proxy'"));
-	checkf(SkeleMesh.Succeeded(), TEXT("Can't find TankRightTrack Mesh."));
-	this->GetMesh()->SetSkeletalMesh(SkeleMesh.Object);
-	this->GetMesh()->SetRelativeLocationAndRotation(FVector(0, 0, -92), FRotator(0, -90, 0));
+	if (SkeleMesh.Succeeded()) {
+		this->GetMesh()->SetSkeletalMesh(SkeleMesh.Object);
+		this->GetMesh()->SetRelativeLocationAndRotation(FVector(0, 0, -92), FRotator(0, -90, 0));
+	}
+
 
 	//MovementSettings的初始化
 	CurrentMovementSettings.WalkSpeed = 165.f;
@@ -89,12 +92,12 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 	SetEssentialValues(); //获得主要的角色信息
 	if (MovementState == EStarve_MovementState::Grounded) {
 		UpdateCharacterMovement(); //更新角色在地面上的移动信息
-
+		UpdateGroundedRotation();//更新在地面上的旋转信息
 	}
 
 	CacheValus();
 
-	UKismetSystemLibrary::PrintString(this, FString::SanitizeFloat(Speed),true,false,FLinearColor::Blue,0.f);
+	//UKismetSystemLibrary::PrintString(this, FString::SanitizeFloat(Speed),true,false,FLinearColor::Blue,0.f);
 	/*第二步，保存当前的某些信息*/
 
 
@@ -665,5 +668,66 @@ float AStarveCharacterBase::GetMappedSpeed()
 
 	return speed;
 }
-
 #pragma endregion
+
+//RatationSystem
+void AStarveCharacterBase::UpdateGroundedRotation()
+{
+	//MovementAction用于判断有没有处于蒙太奇状态下
+	if (MovementAction == EStarve_MovementAction::None) {
+		if (CanUpdateMovingRotation()) {
+			switch (RotationMode)
+			{
+			case EStarve_RotationMode::VelocityDirection:
+
+				break;
+			case EStarve_RotationMode::LookingDirection: {
+				float rotationrate = CalculateGroundedRotationRate();
+				//冲刺状态下的yaw跟走路奔跑有所不同
+				float ratationyaw = (Gait == EStarve_Gait::Sprinting) ? LastVelocityRotation.Yaw : GetControlRotation().Yaw + GetAnimCurveValue(FName("YawOffset"));
+				SmoothCharacterRotation(FRotator(0, ratationyaw, 0), 500.f, rotationrate);
+			}
+				break;
+			case EStarve_RotationMode::Aiming:
+				break;
+			}
+		}
+		else {
+
+		}
+	}
+	else if (MovementAction == EStarve_MovementAction::Rolling) {
+
+	}
+}
+
+bool AStarveCharacterBase::CanUpdateMovingRotation()
+{
+	//HasAnyRootMotion()是否有根运动
+	return ((bIsMoving && bHasMovementInput) || Speed > 150.f) && !HasAnyRootMotion();
+}
+
+void AStarveCharacterBase::SmoothCharacterRotation(const FRotator& Target, float TargetInterpSpeed, float ActorInterpSpeed)
+{
+	//常量差值获得目标旋转
+	float delta = UGameplayStatics::GetWorldDeltaSeconds(this);
+	TargetRotation = FMath::RInterpConstantTo(TargetRotation, Target, delta, TargetInterpSpeed);
+	//设置角色转向目标旋转
+	FRotator newrotator = FMath::RInterpTo(GetActorRotation(), TargetRotation, delta, ActorInterpSpeed);
+	SetActorRotation(newrotator);
+}
+
+float AStarveCharacterBase::CalculateGroundedRotationRate()
+{
+	float curvevaule = CurrentMovementSettings.RotationRateCurve->GetFloatValue(GetMappedSpeed());
+	float maprangeclamp = FMath::GetMappedRangeValueClamped(FVector2D(0, 300), FVector2D(1, 3), AimYawRate);
+	return curvevaule * maprangeclamp;
+}
+
+float AStarveCharacterBase::GetAnimCurveValue(FName CurveName)
+{
+	if (IsValid(MainAnimInstance)) {
+		return MainAnimInstance->GetCurveValue(CurveName);
+	}
+	return 0.f;
+}

@@ -161,7 +161,11 @@ struct FLeanAmount
 public:
 	FLeanAmount() :LR(0.f), FB(0.f) {};
 	FLeanAmount(float lr, float fb) :LR(lr), FB(fb) {};
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float LR;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float FB;
 };
 
@@ -293,12 +297,51 @@ struct FVelocityBlend
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float F;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float B;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float L;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	float R;
 };
 
+
+/*下面两个结构体是动画修改器使用的*/
+//动画修改所需数据
+USTRUCT(BlueprintType)
+struct FAnimCurveCreationData
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	int FrameNumber;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	float CurveValue;
+};
+
+//动画修改所需参数
+USTRUCT(BlueprintType)
+struct FAnimCurveCreationParams
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	FName CurveName;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	bool bKeyEachFrame;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TArray< FAnimCurveCreationData> Keys;
+};
 #pragma endregion
 
 /**

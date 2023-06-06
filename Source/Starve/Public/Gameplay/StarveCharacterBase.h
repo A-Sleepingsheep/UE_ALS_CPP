@@ -215,4 +215,12 @@ public:
 	FMovementSettings GetTargetMovementSettings();//获得对应旋转模式下MovementSettings里面的数据
 	float GetMappedSpeed();//获取曲线对应的速度
 	#pragma endregion
+
+	//RotationSystem
+	void UpdateGroundedRotation();//更新在地面上的选装模式
+	bool CanUpdateMovingRotation();//判断是否更新运动旋转
+	//根据摄像机的旋转平滑人物的旋转
+	void SmoothCharacterRotation(const FRotator& Target,float TargetInterpSpeed,float ActorInterpSpeed);
+	float CalculateGroundedRotationRate();//计算人物在地面上的旋转速度
+	float GetAnimCurveValue(FName CurveName);//获得动画曲线值
 };
