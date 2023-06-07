@@ -6,7 +6,6 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Curves/CurveVector.h"
 #include "Kismet/GameplayStatics.h"
@@ -14,6 +13,7 @@
 
 #include "Components/InteractiveComponent.h"
 #include "Libraries/Starve_MacroLibrary.h"
+#include "Interfaces/Starve_AnimationInterface.h"
 
 #pragma region Override
 // Sets default values
@@ -93,6 +93,12 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 	if (MovementState == EStarve_MovementState::Grounded) {
 		UpdateCharacterMovement(); //更新角色在地面上的移动信息
 		UpdateGroundedRotation();//更新在地面上的旋转信息
+	}
+	else if(MovementState == EStarve_MovementState::InAir){
+		UpdateInAirRotation();
+		if (bHasMovementInput) {
+			MantleCheck(FallingTraceSettings, EDrawDebugTrace::ForOneFrame);
+		}
 	}
 
 	CacheValus();
@@ -756,4 +762,89 @@ void AStarveCharacterBase::LimitRotation(float AimYawMin, float AimYawMax, float
 		float target_ry = delta_ry > 0.f ? control_r.Yaw + AimYawMin : control_r.Yaw + AimYawMax;
 		SmoothCharacterRotation(FRotator(0, target_ry, 0), 0.f, InterpSpeed);
 	}
+}
+
+void AStarveCharacterBase::OnJumped_Implementation()
+{
+	//父类的OnJumped事件只是一个空函数,可以不用调用父类的实现
+	//Super::OnJumped_Implementation();
+
+	InAirRotation = Speed > 100.f ? LastVelocityRotation : GetActorRotation();
+
+	if (IsValid(MainAnimInstance)) {
+		//UKismetSystemLibrary::PrintString(this, TEXT("OnJumped_Implementation"), true, false, FLinearColor::Blue, 5.f);
+		Cast<IStarve_AnimationInterface>(MainAnimInstance)->I_Jumped();
+	}
+}
+
+
+void AStarveCharacterBase::UpdateInAirRotation()
+{
+	if (RotationMode == EStarve_RotationMode::LookingDirection || RotationMode == EStarve_RotationMode::VelocityDirection) {
+		SmoothCharacterRotation(FRotator(0.f, InAirRotation.Yaw, 0.f), 0.f, 5.f);
+	}
+	else {
+		SmoothCharacterRotation(FRotator(0.f, GetControlRotation().Yaw, 0.f), 0.f, 15.f);
+		InAirRotation = GetActorRotation();
+	}
+}
+
+
+bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDrawDebugTrace::Type DebugTrace)
+{
+	/*1、处于空中时进行胶囊体检测，获得一些碰撞的基础数据*/
+	//MantleCheck检测所需要用的局部变量
+	FVector InitialTrace_ImpactPoint;/*实际碰撞到的点位置*/
+	FVector InitialTrace_Normal;/*碰撞点处的法线*/
+
+	//胶囊体检测需要用到的变量
+	float max_p_min = TraceSettings.MaxLedgeHeight + TraceSettings.MinLedgeHeight;
+	float max_s_min = TraceSettings.MaxLedgeHeight - TraceSettings.MinLedgeHeight;
+
+	FVector movementdirection = GetPlayerMovementInput();
+
+	FVector start = GetCapsuleBaseLocation(2.f) + (-30.f * movementdirection) + FVector(0.f, 0.f, max_p_min / 2);
+	FVector end = start + movementdirection * TraceSettings.ReachDistance;
+	float halfheight = max_s_min / 2 + 1.f;
+
+	FHitResult hitresult;
+	//胶囊体检测
+	if (UKismetSystemLibrary::CapsuleTraceSingle(this,start,end,TraceSettings.ForwardTraceRadius, halfheight,
+		ETraceTypeQuery::TraceTypeQuery3, false, {},DebugTrace,hitresult,true,
+		FLinearColor::Black,FLinearColor::Black,1.0f)) 
+	{
+		//GetCharacterMovement()->IsWalkable(hitresult)判断碰撞检测的结构是否能过行走
+		if (!GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit && !hitresult.bStartPenetrating) {
+			//不能进行行走但是有碰撞
+			InitialTrace_ImpactPoint = hitresult.ImpactPoint;
+			InitialTrace_Normal = hitresult.ImpactNormal;
+		}
+		else
+		{
+			//上面条件不满足返回false，代表着没有碰撞到物体，不能进行攀爬
+			return false;
+		}
+	}
+
+	/*2、*/
+
+	return true;
+}
+
+FVector AStarveCharacterBase::GetCapsuleBaseLocation(float ZOffset)
+{
+	//返回的值大概是在Mesh网格的root位置
+	UCapsuleComponent* capsule = this->GetCapsuleComponent();
+	return capsule->GetComponentLocation() - (capsule->GetUpVector() * (capsule->GetScaledCapsuleHalfHeight() + ZOffset));
+}
+
+FVector AStarveCharacterBase::GetPlayerMovementInput()
+{
+	float forward = InputComponent->GetAxisValue(FName("MoveForward"));
+	float right = InputComponent->GetAxisValue(FName("MoveRight"));
+
+	FVector forward_d = GetControllerDirection(EAxis::X);
+	FVector right_d = GetControllerDirection(EAxis::Y);
+	//A.GetSafeNormal(0.0001f)获得A向量的单位向量，参数是可接受的浮动范围
+	return (forward_d * forward + right_d * right).GetSafeNormal(0.0001f);
 }

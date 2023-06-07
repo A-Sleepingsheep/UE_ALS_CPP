@@ -131,7 +131,10 @@ enum class EFootstepType : uint8 {
 /*进入行走前的状态*/
 UENUM(BlueprintType)
 enum class EGroundedEntryState : uint8 {
+	//不是从翻滚状态进入GroundedEntry的都是None
 	None,
+
+	//从翻滚状态进入GroundedEntry
 	Roll
 };
 

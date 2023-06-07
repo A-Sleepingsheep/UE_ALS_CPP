@@ -74,7 +74,11 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 						case EDoWhtileReturn::WhileFalse: {
 							/*第一步，是否可以原地转头*/
 							if (CanRotateInPlace()) {
-
+								RotateInPlaceCheck();
+							}
+							else {
+								Rotate_L = false;
+								Rotate_R = false;
 							}
 
 
@@ -82,6 +86,10 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 							if (CanTurnInPlace()) {
 								TurnInPlaceCheck();
 							}
+							else {
+								ElapsedDelayTime = 0.f;
+							}
+
 
 							/*第三步，是否动态过渡*/
 							if (CanDynamicTransition()) {
@@ -91,8 +99,12 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 						}
 
 						//角色从非move转到Move
-						case EDoWhtileReturn::ChangeToTrue:
+						case EDoWhtileReturn::ChangeToTrue: {
+							ElapsedDelayTime = 0.f;
+							Rotate_L = false;
+							Rotate_R = false;
 							break;
+						}
 
 						//角色从move转到非Move
 						case EDoWhtileReturn::ChangeToFalse:
@@ -484,7 +496,7 @@ void UStarveCharacterAnimInstance::TurnInPlaceCheck()
 	/*1、*/
 	if (FMath::Abs(AimingAngle.X) > TurnCheckMinAngle && AimYawRate < AimYawRateLimit) {
 		ElapsedDelayTime += DeltaTimeX;
-		//通过映射角度获得延迟的时间
+		//通过映射角度获得转向开始前延迟的时间（角度小的延迟较大，角度大的延迟较小）
 		float aimangle_delaytime = FMath::GetMappedRangeValueClamped(FVector2D(TurnCheckMinAngle, 180.f), FVector2D(MinAngleDelay, MaxAngleDelay), FMath::Abs(AimingAngle.X));
 		
 		if (ElapsedDelayTime > aimangle_delaytime) {
@@ -521,7 +533,7 @@ void UStarveCharacterAnimInstance::TurnInPlace(const FRotator& TargetRotation, f
 	/*1、计算旋转角度*/
 	float turnangle = UKismetMathLibrary::NormalizedDeltaRotator(TargetRotation, CharacterRef->GetActorRotation()).Yaw;
 
-	/*2、根据判断获得正确的 FTurnInPlace_Asset（决定播放哪个旋转的动画以及其它的一些信息，是在AnimationBlueprint中给定的）*/
+	/*2、根据判断获得正确的 FTurnInPlace_Asset（决定播放哪个旋转的动画以及其它的一些信息，是在该类的生成的子类赋值的）*/
 	//大于130进行180旋转，小于进行90旋转
 	FTurnInPlace_Asset TargetTurnAsset;
 	if (FMath::Abs(turnangle) < Turn180Threshold) {
@@ -552,4 +564,42 @@ void UStarveCharacterAnimInstance::TurnInPlace(const FRotator& TargetRotation, f
 			TargetTurnAsset.PlayRate * PlayRateScale;
 	}
 
+}
+
+void UStarveCharacterAnimInstance::RotateInPlaceCheck()
+{
+	/*1、根据AimingAngle与Rotate的阈值进行比较判断Rotate是向左还是向右*/
+	Rotate_L = AimingAngle.X < RotateMinThreshold;
+	Rotate_R = AimingAngle.X > RotateMaxThreshold;
+
+	/*2、RotateRate将用于修改曲线RotationAmount*/
+	if (Rotate_L || Rotate_R) {
+		RotateRate = FMath::GetMappedRangeValueClamped(FVector2D(AimYawRateMinRange, AimYawRateMaxRange), FVector2D(MinPlayRate, MinPlayRate), AimYawRate);
+	}
+}
+
+
+void UStarveCharacterAnimInstance::I_Jumped()
+{
+	Jumped = true;
+	JumpPlayRate = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 600.f), FVector2D(1.2f, 1.5f), Speed);
+	//跳跃后重置Jumped
+	const FLatentActionInfo LatentInfo(0, FMath::Rand(), TEXT("I_JumpedDelayFinish"), this);
+	UKismetSystemLibrary::Delay(this, 0.1f, LatentInfo);
+}
+
+void UStarveCharacterAnimInstance::I_SetGroundedEntryState(EGroundedEntryState GroundEntryState)
+{
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void UStarveCharacterAnimInstance::I_SetOverlayOverrideState(int OverlatOverrideState)
+{
+	//throw std::logic_error("The method or operation is not implemented.");
+}
+
+void UStarveCharacterAnimInstance::I_JumpedDelayFinish()
+{
+	//UKismetSystemLibrary::PrintString(this, TEXT("I_JumpedDelayFinish"), true, false, FLinearColor::Blue, 5.f);
+	Jumped = false;
 }

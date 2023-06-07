@@ -7,6 +7,7 @@
 
 #include "Enums/Starve_LocomotionEnum.h"
 #include "Structs/Starve_LocomotionStructs.h"
+#include "Interfaces/Starve_AnimationInterface.h"
 
 #include "StarveCharacterAnimInstance.generated.h"
 
@@ -14,7 +15,7 @@
  * 
  */
 UCLASS()
-class STARVE_API UStarveCharacterAnimInstance : public UAnimInstance
+class STARVE_API UStarveCharacterAnimInstance : public UAnimInstance,public IStarve_AnimationInterface
 {
 	GENERATED_BODY()
 
@@ -24,6 +25,7 @@ public:
 	virtual void NativeInitializeAnimation() override;
 
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+
 
 private:
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -181,7 +183,7 @@ private:
 	float SmoothedAimingRotationInterpSpeed = 10.f;//Rotation差值速度
 
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector2D AimingAngle;//Aiming角度
+	FVector2D AimingAngle;//Aiming角度，X代表Yaw偏移，Y代表Pitch偏移
 
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	FVector2D SmoothedAimingAngle;//中间的Aiming角度
@@ -231,6 +233,39 @@ private:
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float RotationScale;//原地转向的缩放
 
+	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool Rotate_L;//是否向左旋转
+
+	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool Rotate_R;//是否向右旋转
+
+	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RotateMinThreshold = -50.f;//原地旋转最小阈值
+	
+	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RotateMaxThreshold = 50.f;//原地旋转最大阈值
+		
+	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AimYawRateMinRange = 90.f;//AimYawRate映射的最小值
+	
+	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AimYawRateMaxRange = 270.f;//AimYawRate映射的最大值
+
+	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MinPlayRate = 1.15f;//AimYawRate映射到的最小值
+
+	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MaxPlayRate = 3.f;//AimYawRate映射到的最大值
+
+	UPROPERTY(Category = "RotateInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RotateRate;//Rotate的值
+
+	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool Jumped;//是否跳跃
+
+	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float JumpPlayRate;//跳跃动画的速率
+
 	//MovementSystem
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/
@@ -260,7 +295,7 @@ private:
 	bool AngleInRange(float Angle, float MinAngle, float MaxAngle, float Buffer, bool bIncreaseBuffer);
 
 
-	//AnimNotify，是在状态机 State 中的 CustomBlueprintEvent 通知
+	//AnimNotify，是在六向状态机 State 中的 CustomBlueprintEvent 通知
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
         void AnimNotify_Hips_F(UAnimNotify* Notify);
 
@@ -299,4 +334,16 @@ private:
 	//转向函数
 	void TurnInPlace(const FRotator& TargetRotation, float PlayRateScale, float StartTime, bool bOverrideCurrent);//原地转向检测并进行转向操作
 
+	void RotateInPlaceCheck();//原地旋转检测
+
+	//AnimationInterfaces
+	virtual void I_Jumped() override;
+
+	virtual void I_SetGroundedEntryState(EGroundedEntryState GroundEntryState) override;
+
+	virtual void I_SetOverlayOverrideState(int OverlatOverrideState) override;
+
+	//延迟Delay结束后调用的函数
+	UFUNCTION()
+	void I_JumpedDelayFinish(); //Delay结束调用函数
 };

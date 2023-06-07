@@ -169,20 +169,38 @@ public:
 	float FB;
 };
 
+
 USTRUCT(BlueprintType)
 struct FMantle_Asset
 {
 	GENERATED_BODY()
 
 public:
+	//翻墙蒙太奇
 	class UAnimMontage* AnimMontage;
+
+	//修正用的动画曲线
 	UCurveVector* PositionCorrectionCurve;
+
+	//开始的位置偏移
 	FVector StartingOffset;
+
+	//低翻墙的高度
 	float LowHeight;
+
+	//低翻墙的播放速率
 	float LowPlayRate;
+
+	//低翻开始位置
 	float LowStartPosition;
+
+	/*高翻高度*/
 	float HighHeight;
+
+	/*高翻播放速率*/
 	float HighPlayRate;
+
+	/*高翻开始位置*/
 	float HighStartPosition;
 };
 
@@ -192,10 +210,16 @@ struct FMantle_Params
 	GENERATED_BODY()
 
 public:
+	/*翻墙蒙太奇*/
 	UAnimMontage* AnimMontage;
+
+
 	UCurveVector* PositionCorrectionCurve;
+
 	float PlayRate;
+
 	float StartingPosition;
+
 	FVector StartingOffset;
 };
 
@@ -205,6 +229,9 @@ struct FMantle_TraceSettings
 	GENERATED_BODY()
 
 public:
+	FMantle_TraceSettings() {};
+	FMantle_TraceSettings(float MaxLH, float MinLH, float RD, float FTR, float DTR) :MaxLedgeHeight(MaxLH), MinLedgeHeight(MinLH),ReachDistance(RD), ForwardTraceRadius(FTR), DownwardTracrRadius(DTR) {};
+
 	float MaxLedgeHeight;
 	float MinLedgeHeight;
 	float ReachDistance;

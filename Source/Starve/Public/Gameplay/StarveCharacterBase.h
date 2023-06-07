@@ -7,6 +7,7 @@
 
 #include "Interfaces/CameraInterface.h"
 #include "Interfaces/Starve_CharacterInterface.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 #include "StarveCharacterBase.generated.h"
 
@@ -114,6 +115,13 @@ private:
 
 	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		FMovementSettings CurrentMovementSettings;
+
+	UPROPERTY(Category = RotationSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FRotator InAirRotation;//刚跳跃起来的角色朝向
+
+	//在空中时的攀爬检测数据
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FMantle_TraceSettings FallingTraceSettings = FMantle_TraceSettings(200.f,50.f,70.f,30.f,30.f);
 	#pragma endregion
 
 
@@ -224,4 +232,20 @@ public:
 	float CalculateGroundedRotationRate();//计算人物在地面上的旋转速度
 	float GetAnimCurveValue(FName CurveName);//获得动画曲线值
 	void LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed);//限制Rotation
+
+	//跳跃事件,里面调用了在动画蓝图中实现的接口I_Jumped()，主要是为了实现动画蓝图与角色动作的同步
+	virtual void OnJumped_Implementation() override;
+
+	//处于跳跃转态时（处于空中时)
+	void UpdateInAirRotation();
+
+	//MantleSystem
+	/*攀爬检测*/
+	bool MantleCheck(FMantle_TraceSettings TraceSettings,EDrawDebugTrace::Type DebugTrace);
+
+	/*获得经过ZOffset偏移的胶囊体组件的位置，主要是为了进行修正，对攀爬的检测有很大的作用*/
+	FVector GetCapsuleBaseLocation(float ZOffset);
+
+	/*获得人物在进行攀爬检测时是往哪边运动的*/
+	FVector GetPlayerMovementInput();
 };
