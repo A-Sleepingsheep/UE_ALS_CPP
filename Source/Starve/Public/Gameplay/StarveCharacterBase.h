@@ -13,6 +13,7 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class UTimelineComponent;
 
 
 UCLASS()
@@ -56,7 +57,7 @@ public:
 
 #pragma endregion
 
-private:
+protected:
 	#pragma region EssentialInformation
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 		FVector Acceleration;/*加速度*/
@@ -128,6 +129,30 @@ private:
 
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		FMantle_Params MantleParams;
+
+	/*局部坐标下攀爬位置的变换*/
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FStarve_ComponentAndTransform MantleLedgeLS;
+
+	/*攀爬点的世界变化*/
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTransform MantleTarget;
+
+	/*攀爬点的实际开始偏移量*/
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTransform MantleActualStartOffset;
+
+	/*攀爬动画的开始偏移量*/
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FTransform MantleAnimatedStartOffset;
+
+	/*Mantle的时间轴*/
+	UPROPERTY(Category = MantleSystem,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UTimelineComponent* MantleTimeline;
+
+	/*时间轴所用的曲线*/
+	UPROPERTY(Category = MantleSystem,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UCurveFloat* MantleTimelineCurve;
 	#pragma endregion
 
 
@@ -261,9 +286,25 @@ public:
 	/*检测是否有足够的空间容纳胶囊体*/
 	bool CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const FVector& TargetLocation, float HeihtOffset, float RadiusOffset, EDrawDebugTrace::Type DegugType);
 
-	/*攀爬实现*/
-	void MantleStart(float& MantleHeight,FStarve_ComponentAndTransform& MantleLedgeWS,EMantleType& RefMantleType);
 	
+protected:
+
+	/*攀爬实现*/
+	virtual void MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType);
+
 	/*通过MantleType获得对应的MantleAsset*/
-	FMantle_Asset GetMantleAsset(EMantleType MantleType);
+	virtual FMantle_Asset GetMantleAsset(EMantleType MantleType);
+
+public:
+	/*MantleTimeliness的Update函数*/
+	UFUNCTION(BlueprintCallable)
+	void MantleUpdate(float BlendIn);
+
+	/*MantleTimeliness的结束调用函数*/
+	UFUNCTION(BlueprintCallable)
+	virtual void MantleEnd();
+
+	/*攀爬更新角色位置和旋转*/
+	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport, FHitResult& SweepHitReault);
+
 };

@@ -2,6 +2,8 @@
 
 
 #include "Characters/StarveCharacter.h"
+#include "Curves/CurveVector.h"
+
 
 AStarveCharacter::AStarveCharacter() {
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkeleMesh(TEXT("SkeletalMesh'/Game/MyALS_CPP/CharacterAssets/Mesh/StarveMan.StarveMan'"));
@@ -13,6 +15,7 @@ AStarveCharacter::AStarveCharacter() {
 	if (CharAniInsFinder.Class != NULL) {
 		this->GetMesh()->AnimClass = CharAniInsFinder.Class;
 	}
+
 }
 
 #pragma region CameraInterfaceDefinition
@@ -41,6 +44,32 @@ float AStarveCharacter::Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery
 	}
 	TraceChannel = ETraceTypeQuery::TraceTypeQuery2;
 	return 15.0f;
+}
+
+
+FMantle_Asset AStarveCharacter::GetMantleAsset(EMantleType mantleType)
+{
+	if (mantleType == EMantleType::HighMantle || mantleType == EMantleType::FallingCatch) {
+		return Mantle_2m_Default;
+	}
+	else if(mantleType==EMantleType::LowMantle) {
+		return Mantle_2m_Default;
+
+	}
+	return Mantle_2m_Default;
+
+}
+
+
+void AStarveCharacter::MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType)
+{
+	Super::MantleStart(MantleHeight, MantleLedgeLS, RefMantleType);
+
+}
+
+void AStarveCharacter::MantleEnd()
+{
+	Super::MantleEnd();
 }
 
 #pragma endregion

@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+
+#include "Structs/Starve_LocomotionStructs.h"
+
 #include "Starve_MacroLibrary.generated.h"
 
 
@@ -23,6 +26,18 @@ public:
 	template<typename T>
 	static void ML_SetPreviousAndNewValue(const T NewValue, T& NewTarget, T& Previous);
 
+	/*PrimitiveComponent的Transform由世界坐标系到局部坐标系*/
+	static FStarve_ComponentAndTransform ML_ComponentWorldToLocal(FStarve_ComponentAndTransform WorldSpaceComp);
+
+	/*自定义变换减法*/
+	static FTransform ML_TransformSub(const FTransform& A, const FTransform& B);
+
+	/*PrimitiveComponent的Transform由局部坐标系到世界坐标系*/
+	static FStarve_ComponentAndTransform ML_ComponentLocalToWorld(FStarve_ComponentAndTransform LocalSpaceComp);
+
+
+	/*自定义变换加法*/
+	static FTransform ML_TransformAdd(const FTransform& A, const FTransform& B);
 };
 
 template<typename T>

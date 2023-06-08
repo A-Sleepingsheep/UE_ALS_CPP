@@ -179,31 +179,56 @@ struct FMantle_Asset
 	GENERATED_BODY()
 
 public:
+	FMantle_Asset() {};
+	FMantle_Asset(UAnimMontage* AnimMontage, UCurveVector* PositionCorrectionCurve, 
+		FVector StartingOffset,float LowHeight, float LowPlayRate, float LowStartPosition,
+		float HighHeight, float HighPlayRate,float HighStartPosition) 
+	{
+		this->AnimMontage = AnimMontage;
+		this->PositionCorrectionCurve = PositionCorrectionCurve;
+		this->StartingOffset = StartingOffset;
+		this->LowHeight = LowHeight;
+		this->LowPlayRate = LowPlayRate;
+		this->LowStartPosition = LowStartPosition;
+		this->HighHeight = HighHeight;
+		this->HighPlayRate = HighPlayRate;
+		this->HighStartPosition = HighStartPosition;
+	};
+
 	//翻墙蒙太奇
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	class UAnimMontage* AnimMontage;
 
 	//修正用的动画曲线
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UCurveVector* PositionCorrectionCurve;
 
 	//开始的位置偏移
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector StartingOffset;
 
 	//低翻墙的高度
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float LowHeight;
 
 	//低翻墙的播放速率
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float LowPlayRate;
 
 	//低翻开始位置
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float LowStartPosition;
 
 	/*高翻高度*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HighHeight;
 
 	/*高翻播放速率*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HighPlayRate;
 
 	/*高翻开始位置*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HighStartPosition;
 };
 

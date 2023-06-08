@@ -9,11 +9,12 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Curves/CurveVector.h"
 #include "Kismet/GameplayStatics.h"
-
+#include "Components/TimelineComponent.h"
 
 #include "Components/InteractiveComponent.h"
 #include "Libraries/Starve_MacroLibrary.h"
 #include "Interfaces/Starve_AnimationInterface.h"
+#include "Animation/AnimMontage.h"
 
 #pragma region Override
 // Sets default values
@@ -71,6 +72,14 @@ AStarveCharacterBase::AStarveCharacterBase()
 	CurrentMovementSettings.RunSpeed = 350.f;
 	CurrentMovementSettings.SprintSpeed = 600.f;
 
+	//Timeliness组件
+	MantleTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("MantleTimeline"));
+
+	/*Mantle时间轴所用的曲线赋值*/
+	static ConstructorHelpers::FObjectFinder<UCurveFloat> cf2(TEXT("CurveFloat'/Game/MyALS_CPP/Data/Curves/MantleCurve/Mantle_Timeline.Mantle_Timeline'"));
+	if (cf2.Succeeded()) {
+		MantleTimelineCurve = cf2.Object;
+	}
 
 }
 
@@ -79,7 +88,19 @@ void AStarveCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	//
+	
+	//Timeline的事件委托绑定
+	FOnTimelineFloat TimelineUpdated;
+	FOnTimelineEvent TimelineFinished;
+	TimelineUpdated.BindUFunction(this, TEXT("MantleUpdate"));
+	TimelineFinished.BindUFunction(this, TEXT("MantleEnd"));
+
+	MantleTimeline->AddInterpFloat(MantleTimelineCurve, TimelineUpdated);
+	MantleTimeline->SetTimelineFinishedFunc(TimelineFinished);
+	MantleTimeline->SetTimelineLengthMode(ETimelineLengthMode::TL_TimelineLength);
+	MantleTimeline->SetLooping(false);
+	MantleTimeline->SetTimelineLength(5.f);
+
 	OnBeginPlay();
 }
 
@@ -811,7 +832,7 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 	//胶囊体检测
 	if (UKismetSystemLibrary::CapsuleTraceSingle(this, start, end, TraceSettings.ForwardTraceRadius, halfheight,
 		ETraceTypeQuery::TraceTypeQuery3, false, {}, DebugTrace, hitresult, true,
-		FLinearColor::Black, FLinearColor::Black, 1.0f))
+		FLinearColor::Black, FLinearColor::Blue, 1.0f))
 	{
 		//GetCharacterMovement()->IsWalkable(hitresult)判断碰撞检测的结构是否能过行走
 		if (!GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit && !hitresult.bStartPenetrating) {
@@ -916,15 +937,54 @@ bool AStarveCharacterBase::CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const
 
 void AStarveCharacterBase::MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType)
 {
-	/*1、*/
+	/*1、通过对应的Mantle获取对应的MantleAsset,计算对应的MantleParams的参数*/
 	FMantle_Asset MantleAsset = GetMantleAsset(MantleType);
+
+	float playrate = FMath::GetMappedRangeValueClamped(FVector2D(MantleAsset.LowHeight, MantleAsset.HighHeight), FVector2D(MantleAsset.LowPlayRate, MantleAsset.HighPlayRate), MantleHeight);
+	float startlocation = FMath::GetMappedRangeValueClamped(FVector2D(MantleAsset.LowHeight, MantleAsset.HighHeight), FVector2D(MantleAsset.LowStartPosition, MantleAsset.HighStartPosition), MantleHeight);
+
+	MantleParams.AnimMontage = MantleAsset.AnimMontage;
+	MantleParams.PositionCorrectionCurve = MantleAsset.PositionCorrectionCurve;
+	MantleParams.StartingPosition = startlocation;
+	MantleParams.PlayRate = playrate;
+	MantleParams.StartingOffset = MantleAsset.StartingOffset;
+	
+	/*2、获得攀爬点在局部坐标系的位置*/
+	MantleLedgeLS = UStarve_MacroLibrary::ML_ComponentWorldToLocal(MantleLedgeWS);
+
+	/*3、设置攀爬点的变换，攀爬点开始位置的变换偏移*/
+	MantleTarget = MantleLedgeWS.Transform;
+	MantleActualStartOffset = UStarve_MacroLibrary::ML_TransformSub(GetActorTransform(), MantleTarget);
+
+	/*4、计算从目标位置开始的动画偏移。这将是实际动画相对于“目标变换”开始的位置*/
+	FVector rotationvector = MantleTarget.Rotator().Vector();
+	FVector scalerotationvector = rotationvector * MantleParams.StartingOffset.Y;
+	FVector animatedlocation = MantleTarget.GetLocation() - FVector(scalerotationvector.X, scalerotationvector.Y, MantleParams.StartingOffset.Z);
+	FTransform animtedtransform = FTransform(MantleTarget.Rotator(), animatedlocation);
+	MantleAnimatedStartOffset = UStarve_MacroLibrary::ML_TransformSub(animtedtransform, MantleTarget);
+
+	/*5、清除角色移动模式并将移动状态设置为Mantle*/
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
+	I_SetMovementState(EStarve_MovementState::Mantling);
+
+	/*6、配置Mantle Timeline，使其长度与Lerp/Correction曲线减去起始位置的长度相同，并以与动画相同的速度播放。然后开始时间线。*/
+	float MinTime = 0.0f;
+	float MaxTime = 0.0f;
+	MantleParams.PositionCorrectionCurve->GetTimeRange(MinTime, MaxTime);
+	MantleTimeline->SetTimelineLength(MaxTime - MantleParams.StartingPosition);
+	MantleTimeline->SetPlayRate(MantleParams.PlayRate);
+	MantleTimeline->PlayFromStart();
+
+	/*7、*/
+	if (IsValid(MantleParams.AnimMontage) && IsValid(MainAnimInstance)) {
+		MainAnimInstance->Montage_Play(MantleParams.AnimMontage,MantleParams.PlayRate,EMontagePlayReturnType::MontageLength,MantleParams.StartingPosition,false);
+	}
 }
 
-FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType MantleType)
+FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType mantletype)
 {
-	FMantle_Asset MantleAsset;
-
-	class UAnimMontage* AnimMontage;
+	FMantle_Asset returnmantleasset(NULL, NULL, FVector(0, 0, 0), 0, 0, 0, 0, 0, 0);
+	UAnimMontage* AnimMontage;
 	UCurveVector* PositionCorrectionCurve;
 	FVector StartingOffset;
 	float LowHeight;
@@ -934,9 +994,11 @@ FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType MantleType)
 	float HighPlayRate;
 	float HighStartPosition;
 
-	switch (MantleType)
+	switch (mantletype)
 	{
 		case EMantleType::HighMantle: {
+			AnimMontage = NULL;
+			PositionCorrectionCurve = LoadObject<UCurveVector>(NULL, TEXT("CurveVector'/Game/MyALS_CPP/Data/Curves/MantleCurve/Mantle_1m.Mantle_1m'"));
 			StartingOffset = FVector(0.f, 65.f, 200.f);
 			LowHeight = 50.f;
 			LowPlayRate = 1.f;
@@ -947,6 +1009,8 @@ FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType MantleType)
 			break;
 		}
 		case EMantleType::LowMantle: {
+			AnimMontage = NULL;
+			PositionCorrectionCurve = LoadObject<UCurveVector>(NULL, TEXT("CurveVector'/Game/MyALS_CPP/Data/Curves/MantleCurve/Mantle_1m.Mantle_2m'"));
 
 			StartingOffset = FVector(0.f, 65.f, 200.f);
 			LowHeight = 125.f;
@@ -958,7 +1022,8 @@ FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType MantleType)
 			break;
 		}
 		case EMantleType::FallingCatch: {
-
+			AnimMontage = NULL;
+			PositionCorrectionCurve = LoadObject<UCurveVector>(NULL, TEXT("CurveVector'/Game/MyALS_CPP/Data/Curves/MantleCurve/Mantle_1m.Mantle_2m'"));
 			StartingOffset = FVector(0.f, 65.f, 200.f);
 			LowHeight = 125.f;
 			LowPlayRate = 1.2f;
@@ -970,5 +1035,58 @@ FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType MantleType)
 		}
 	}
 
-	return MantleAsset;
+	return returnmantleasset;
+}
+
+void AStarveCharacterBase::MantleUpdate(float BlendIn)
+{
+	/*1、根据存储的局部变换不断更新地幔目标，以跟随移动的对象*/
+	MantleTarget = UStarve_MacroLibrary::ML_ComponentLocalToWorld(MantleLedgeLS).Transform;
+
+	/*2、Update the Position and Correction Alphas using the Position/Correction curve set for each Mantle.*/
+	float curvetime = MantleTimeline->GetPlaybackPosition() + MantleParams.StartingPosition;
+	FVector curvevalue = MantleParams.PositionCorrectionCurve->GetVectorValue(curvetime);
+	float positionalpha = curvevalue.X;
+	float XYCorrectionalpha = curvevalue.Y;
+	float zcorrectionalpha = curvevalue.Z;
+
+	/*3.将多个变换组合在一起，以独立控制到动画开始位置以及目标位置的水平和垂直混合。*/
+	FVector mantle_anim_start_offset = MantleAnimatedStartOffset.GetLocation();
+	FVector mantle_antual_start_offset = MantleActualStartOffset.GetLocation();
+
+	//使用 XYCorrectionalpha 混合到已设置动画的水平和旋转偏移中。
+	FTransform lerpb_anim(MantleAnimatedStartOffset.Rotator(), FVector(mantle_anim_start_offset.X, mantle_anim_start_offset.Y, mantle_antual_start_offset.Z));
+	FTransform animtransform = UKismetMathLibrary::TLerp(MantleActualStartOffset, lerpb_anim, XYCorrectionalpha);
+	FVector animlocation = animtransform.GetLocation();
+
+	//使用 zcorrectionalpha 混合到已设置动画的垂直偏移中。
+	FTransform lerpb_actual(MantleActualStartOffset.Rotator(), FVector(mantle_antual_start_offset.X, mantle_antual_start_offset.Y, mantle_anim_start_offset.Z));
+	FTransform actualtransform = UKismetMathLibrary::TLerp(MantleActualStartOffset, lerpb_actual, zcorrectionalpha);
+	FVector actuallocation = actualtransform.GetLocation();
+
+	FTransform realneedtansform(animtransform.Rotator(), FVector(animlocation.X, animlocation.Y, actuallocation.Z));
+
+	FTransform needtransform = UStarve_MacroLibrary::ML_TransformAdd(MantleTarget, realneedtansform);
+
+	FTransform lerp1 = UKismetMathLibrary::TLerp(needtransform, MantleTarget, positionalpha);
+
+	FTransform needtransform2 = UStarve_MacroLibrary::ML_TransformAdd(MantleTarget, MantleActualStartOffset);
+
+	FTransform lerpedtarget = UKismetMathLibrary::TLerp(needtransform2, lerp1, BlendIn);
+
+	/*4、将 Actor 的位置和旋转设置为 LerpedTarget*/
+	FHitResult SweepHitReault;
+	SetActorLocationAndRotationUpdateTarget(lerpedtarget.GetLocation(), lerpedtarget.Rotator(), false, false, SweepHitReault);
+
+}
+
+void AStarveCharacterBase::MantleEnd()
+{
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+}
+
+bool AStarveCharacterBase::SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport, FHitResult& SweepHitReault)
+{
+	TargetRotation = NewRotator;
+	return K2_SetActorLocationAndRotation(NewLocation, NewRotator, bSweep, SweepHitReault, bTeleport);
 }

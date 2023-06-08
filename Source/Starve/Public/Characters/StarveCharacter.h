@@ -17,16 +17,25 @@ class STARVE_API AStarveCharacter : public AStarveCharacterBase
 public:
 	AStarveCharacter();
 
+	/*æ”€çˆ¬ç‚¹çš„å®é™…å¼€å§‹åç§»é‡*/
+	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
+		FMantle_Asset Mantle_2m_Default;
+
 #pragma region CameraSystemInterface
 
 	virtual FVector Get_FP_CameraTarget() override;
 
-	/*»ñµÃµÚÈıÈË³ÆÏÂÈËÎïµÄ»ù´¡ÃªµãÎ»ÖÃ*/
+	/*è·å¾—ç¬¬ä¸‰äººç§°ä¸‹äººç‰©çš„åŸºç¡€é”šç‚¹ä½ç½®*/
 	UFUNCTION(BlueprintCallable)
 	virtual FTransform Get_TP_PivotTarget() override;
 
-	/*»ñµÃµÚÈıÈË³Æ×óÓÒ¼çµÄÉãÏñ»úÎ»ÖÃ*/
+	/*è·å¾—ç¬¬ä¸‰äººç§°å·¦å³è‚©çš„æ‘„åƒæœºä½ç½®*/
 	virtual float Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery& TraceChannel) override;
 
+	virtual FMantle_Asset GetMantleAsset(EMantleType MantleType) override;
+
+	virtual void MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType) override;
+
+	virtual void MantleEnd() override;
 #pragma endregion
 };
