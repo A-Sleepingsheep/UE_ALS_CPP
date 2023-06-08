@@ -99,6 +99,9 @@ struct FStarve_ComponentAndTransform
 	GENERATED_BODY()
 
 public:
+	FStarve_ComponentAndTransform() {};
+	FStarve_ComponentAndTransform(FTransform transform, UPrimitiveComponent* primitivecom) :Transform(transform), PrimitiveComponent(primitivecom) {};
+	
 	FTransform Transform;
 	UPrimitiveComponent* PrimitiveComponent;
 };

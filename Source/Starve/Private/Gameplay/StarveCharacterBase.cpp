@@ -809,9 +809,9 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 
 	FHitResult hitresult;
 	//胶囊体检测
-	if (UKismetSystemLibrary::CapsuleTraceSingle(this,start,end,TraceSettings.ForwardTraceRadius, halfheight,
-		ETraceTypeQuery::TraceTypeQuery3, false, {},DebugTrace,hitresult,true,
-		FLinearColor::Black,FLinearColor::Black,1.0f)) 
+	if (UKismetSystemLibrary::CapsuleTraceSingle(this, start, end, TraceSettings.ForwardTraceRadius, halfheight,
+		ETraceTypeQuery::TraceTypeQuery3, false, {}, DebugTrace, hitresult, true,
+		FLinearColor::Black, FLinearColor::Black, 1.0f))
 	{
 		//GetCharacterMovement()->IsWalkable(hitresult)判断碰撞检测的结构是否能过行走
 		if (!GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit && !hitresult.bStartPenetrating) {
@@ -826,8 +826,53 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 		}
 	}
 
-	/*2、*/
+	/*2、再通过一个球体检测检测可攀爬的地方能否容纳角色的地方*/
+	FVector DownTraceLocation;/*存放下面球形检测需要的结果*/
+	UPrimitiveComponent* HitComponent = NULL;/*存放碰撞到的组件*/
+	end = FVector(InitialTrace_ImpactPoint.X, InitialTrace_ImpactPoint.Y, GetCapsuleBaseLocation(2.f).Z) + (-15.f * InitialTrace_Normal);
+	start = end + FVector(0.f, 0.f, TraceSettings.MaxLedgeHeight + TraceSettings.DownwardTracrRadius + 1.f);
+	if (UKismetSystemLibrary::SphereTraceSingle(this, start, end, TraceSettings.DownwardTracrRadius, ETraceTypeQuery::TraceTypeQuery3,
+		false, {}, DebugTrace, hitresult, true, FLinearColor::Yellow, FLinearColor::Red, 1.f))
+	{
+		if (GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit) {
+			DownTraceLocation = FVector(hitresult.Location.X, hitresult.Location.Y, hitresult.ImpactPoint.Z);
+			HitComponent = hitresult.GetComponent();
+		}
+		else {
+			return false;
+		}
+	}
 
+	/*3、通过检测是否可以容纳角色胶囊体半高获得目标位置*/
+	FTransform TargetTransform;/*到达点的变换*/
+	float MantleHeight;/*攀爬高度*/
+	FVector capsulelocationfrombase = GetCapsuleLocationFromBase(DownTraceLocation, 2.f);
+	if (CapsuleHasRoomCheck(GetCapsuleComponent(), capsulelocationfrombase, 0.f, 0.f, DebugTrace)) {
+		FRotator targetrotation = (InitialTrace_Normal * FVector(-1.f, -1.f, 0)).ToOrientationRotator();
+		TargetTransform = FTransform(targetrotation, capsulelocationfrombase, FVector(1.f, 1.f, 1.f));
+		MantleHeight = capsulelocationfrombase.Z - GetActorLocation().Z;
+	}
+	else {
+		return false;
+	}
+
+	/*4、判断攀爬的类型*/
+	if (MovementState == EStarve_MovementState::InAir) {
+		MantleType = EMantleType::FallingCatch;
+	}
+	else {
+		if (MantleHeight > 125.f) {
+			MantleType = EMantleType::HighMantle;
+		}
+		else {
+			MantleType = EMantleType::LowMantle;
+		}
+	}
+
+	/*开始攀爬*/
+	FStarve_ComponentAndTransform MantleLedgeWS = FStarve_ComponentAndTransform(TargetTransform, HitComponent);
+	MantleStart(MantleHeight, MantleLedgeWS, MantleType);
+	/*最后return true表示攀爬成功*/
 	return true;
 }
 
@@ -847,4 +892,83 @@ FVector AStarveCharacterBase::GetPlayerMovementInput()
 	FVector right_d = GetControllerDirection(EAxis::Y);
 	//A.GetSafeNormal(0.0001f)获得A向量的单位向量，参数是可接受的浮动范围
 	return (forward_d * forward + right_d * right).GetSafeNormal(0.0001f);
+}
+
+FVector AStarveCharacterBase::GetCapsuleLocationFromBase(const FVector& BaseLocation, float ZOffset)
+{
+	return BaseLocation + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + ZOffset);
+}
+
+bool AStarveCharacterBase::CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const FVector& TargetLocation, float HeihtOffset, float RadiusOffset, EDrawDebugTrace::Type DegugType)
+{
+	//获取不带半球的胶囊体缩放半高
+	float capsulehhwh = Capsule->GetScaledCapsuleHalfHeight_WithoutHemisphere();
+	float startend_z = -1 * RadiusOffset + capsulehhwh + HeihtOffset;
+	FVector start = TargetLocation + FVector(0.f, 0.f, startend_z);
+	FVector end = TargetLocation - FVector(0.f, 0.f, startend_z);
+	FHitResult hitresult;
+	UKismetSystemLibrary::SphereTraceSingleByProfile(this, start, end, Capsule->GetScaledCapsuleRadius() + RadiusOffset,
+		FName("Starve_Character"), false, {}, DegugType, hitresult, true, FLinearColor::Green, FLinearColor(0.9,0.3,1), 1.f);
+	
+	//返回值表示如果没有任何的击中反馈就认为可以容纳胶囊体
+	return !(hitresult.bBlockingHit || hitresult.bStartPenetrating);
+}
+
+void AStarveCharacterBase::MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType)
+{
+	/*1、*/
+	FMantle_Asset MantleAsset = GetMantleAsset(MantleType);
+}
+
+FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType MantleType)
+{
+	FMantle_Asset MantleAsset;
+
+	class UAnimMontage* AnimMontage;
+	UCurveVector* PositionCorrectionCurve;
+	FVector StartingOffset;
+	float LowHeight;
+	float LowPlayRate;
+	float LowStartPosition;
+	float HighHeight;
+	float HighPlayRate;
+	float HighStartPosition;
+
+	switch (MantleType)
+	{
+		case EMantleType::HighMantle: {
+			StartingOffset = FVector(0.f, 65.f, 200.f);
+			LowHeight = 50.f;
+			LowPlayRate = 1.f;
+			LowStartPosition = 0.5f;
+			HighHeight = 100.f;
+			HighPlayRate = 1.f;
+			HighStartPosition = 0.f;
+			break;
+		}
+		case EMantleType::LowMantle: {
+
+			StartingOffset = FVector(0.f, 65.f, 200.f);
+			LowHeight = 125.f;
+			LowPlayRate = 1.2f;
+			LowStartPosition = 0.6f;
+			HighHeight = 200.f;
+			HighPlayRate = 1.2f;
+			HighStartPosition = 0.f;
+			break;
+		}
+		case EMantleType::FallingCatch: {
+
+			StartingOffset = FVector(0.f, 65.f, 200.f);
+			LowHeight = 125.f;
+			LowPlayRate = 1.2f;
+			LowStartPosition = 0.6f;
+			HighHeight = 200.f;
+			HighPlayRate = 1.2f;
+			HighStartPosition = 0.f;
+			break;
+		}
+	}
+
+	return MantleAsset;
 }

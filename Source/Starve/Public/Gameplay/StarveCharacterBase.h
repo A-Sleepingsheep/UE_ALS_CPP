@@ -122,6 +122,12 @@ private:
 	//在空中时的攀爬检测数据
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		FMantle_TraceSettings FallingTraceSettings = FMantle_TraceSettings(200.f,50.f,70.f,30.f,30.f);
+
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		EMantleType MantleType;
+
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FMantle_Params MantleParams;
 	#pragma endregion
 
 
@@ -248,4 +254,16 @@ public:
 
 	/*获得人物在进行攀爬检测时是往哪边运动的*/
 	FVector GetPlayerMovementInput();
+
+	/*从BaseLocation处偏移ZOffset获得胶囊体的位置*/
+	FVector GetCapsuleLocationFromBase(const FVector& BaseLocation, float ZOffset);
+
+	/*检测是否有足够的空间容纳胶囊体*/
+	bool CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const FVector& TargetLocation, float HeihtOffset, float RadiusOffset, EDrawDebugTrace::Type DegugType);
+
+	/*攀爬实现*/
+	void MantleStart(float& MantleHeight,FStarve_ComponentAndTransform& MantleLedgeWS,EMantleType& RefMantleType);
+	
+	/*通过MantleType获得对应的MantleAsset*/
+	FMantle_Asset GetMantleAsset(EMantleType MantleType);
 };
