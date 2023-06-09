@@ -7,17 +7,14 @@
 
 FStarve_ComponentAndTransform UStarve_MacroLibrary::ML_ComponentWorldToLocal(FStarve_ComponentAndTransform WorldSpaceComp)
 {
-	if (WorldSpaceComp.PrimitiveComponent != NULL) {
-		//获得世界坐标
-		FTransform worldspacetransform = WorldSpaceComp.PrimitiveComponent->GetComponentToWorld();
-		//获得局部坐标
-		FTransform localtransform = UKismetMathLibrary::InvertTransform(worldspacetransform);
+	//获得世界坐标变换矩阵
+	FTransform worldspacetransform = WorldSpaceComp.PrimitiveComponent->GetComponentToWorld();
+	//获得局部坐标
+	FTransform inverttransform = UKismetMathLibrary::InvertTransform(worldspacetransform);
 
-		FTransform composetransform = UKismetMathLibrary::ComposeTransforms(WorldSpaceComp.Transform, localtransform);
+	FTransform composetransform = UKismetMathLibrary::ComposeTransforms(WorldSpaceComp.Transform, inverttransform);
 
-		return FStarve_ComponentAndTransform(composetransform, WorldSpaceComp.PrimitiveComponent);
-	}
-	return FStarve_ComponentAndTransform(FTransform(), nullptr);
+	return FStarve_ComponentAndTransform(composetransform, WorldSpaceComp.PrimitiveComponent);
 }
 
 FTransform UStarve_MacroLibrary::ML_TransformSub(const FTransform& A, const FTransform& B)
@@ -31,16 +28,12 @@ FTransform UStarve_MacroLibrary::ML_TransformSub(const FTransform& A, const FTra
 
 FStarve_ComponentAndTransform UStarve_MacroLibrary::ML_ComponentLocalToWorld(FStarve_ComponentAndTransform LocalSpaceComp)
 {
-	if (LocalSpaceComp.PrimitiveComponent != NULL) {
-		//获得世界坐标
-		FTransform worldspacetransform = LocalSpaceComp.PrimitiveComponent->GetComponentToWorld();
+	//获得世界坐标
+	FTransform worldspacetransform = LocalSpaceComp.PrimitiveComponent->GetComponentToWorld();
 
-		FTransform composetransform = UKismetMathLibrary::ComposeTransforms(LocalSpaceComp.Transform, worldspacetransform);
+	FTransform composetransform = UKismetMathLibrary::ComposeTransforms(LocalSpaceComp.Transform, worldspacetransform);
 
-		return FStarve_ComponentAndTransform(composetransform, LocalSpaceComp.PrimitiveComponent);
-	}
-	return FStarve_ComponentAndTransform(FTransform(), nullptr);
-
+	return FStarve_ComponentAndTransform(composetransform, LocalSpaceComp.PrimitiveComponent);
 }
 
 FTransform UStarve_MacroLibrary::ML_TransformAdd(const FTransform& A, const FTransform& B)

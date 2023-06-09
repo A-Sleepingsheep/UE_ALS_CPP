@@ -103,6 +103,7 @@ public:
 	FStarve_ComponentAndTransform(FTransform transform, UPrimitiveComponent* primitivecom) :Transform(transform), PrimitiveComponent(primitivecom) {};
 	
 	FTransform Transform;
+
 	UPrimitiveComponent* PrimitiveComponent;
 };
 
@@ -186,6 +187,18 @@ public:
 	{
 		this->AnimMontage = AnimMontage;
 		this->PositionCorrectionCurve = PositionCorrectionCurve;
+		this->StartingOffset = StartingOffset;
+		this->LowHeight = LowHeight;
+		this->LowPlayRate = LowPlayRate;
+		this->LowStartPosition = LowStartPosition;
+		this->HighHeight = HighHeight;
+		this->HighPlayRate = HighPlayRate;
+		this->HighStartPosition = HighStartPosition;
+	};
+
+	FMantle_Asset(FVector StartingOffset, float LowHeight, float LowPlayRate, 
+		float LowStartPosition,float HighHeight, float HighPlayRate, float HighStartPosition)
+	{
 		this->StartingOffset = StartingOffset;
 		this->LowHeight = LowHeight;
 		this->LowPlayRate = LowPlayRate;

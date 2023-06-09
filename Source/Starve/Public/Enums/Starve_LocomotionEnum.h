@@ -65,7 +65,18 @@ enum class EStarve_MovementState : uint8 {
 UENUM(BlueprintType)
 enum class EStarve_OverlayState : uint8 {
 	Default,
-	Masculine
+	Masculine,
+	Feminine,
+	Injured,
+	HandsTied,
+	Rifle,
+	Pistol_1H,
+	Postol_2H,
+	Bow,
+	Touch,
+	Binoculars,
+	Box,
+	Barrel,
 };
 
 

@@ -122,7 +122,12 @@ protected:
 
 	//在空中时的攀爬检测数据
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMantle_TraceSettings FallingTraceSettings = FMantle_TraceSettings(200.f,50.f,70.f,30.f,30.f);
+		FMantle_TraceSettings FallingTraceSettings = FMantle_TraceSettings(150.f,50.f,70.f,30.f,30.f);
+
+	//在地面上的攀爬检测数据
+	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		FMantle_TraceSettings GroundedTraceSettings = FMantle_TraceSettings(250.f,50.f,75.f,30.f,30.f);
+
 
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		EMantleType MantleType;
@@ -290,7 +295,7 @@ public:
 protected:
 
 	/*攀爬实现*/
-	virtual void MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType);
+	virtual void MantleStart(float MantleHeight,const FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType RefMantleType);
 
 	/*通过MantleType获得对应的MantleAsset*/
 	virtual FMantle_Asset GetMantleAsset(EMantleType MantleType);
@@ -305,6 +310,6 @@ public:
 	virtual void MantleEnd();
 
 	/*攀爬更新角色位置和旋转*/
-	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport, FHitResult& SweepHitReault);
+	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport);
 
 };

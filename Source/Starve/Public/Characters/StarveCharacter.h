@@ -17,9 +17,26 @@ class STARVE_API AStarveCharacter : public AStarveCharacterBase
 public:
 	AStarveCharacter();
 
-	/*攀爬点的实际开始偏移量*/
+	/*Mantle_Assets*/
 	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
-		FMantle_Asset Mantle_2m_Default;
+		FMantle_Asset Mantle_2m_Default = FMantle_Asset(FVector(0.f,65.f,200.f),125.f,1.2f,0.6f,200.f,1.2f,0.f);
+
+	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
+		FMantle_Asset Mantle_1m_Default = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);
+
+	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
+		FMantle_Asset Mantle_1m_LH = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);;
+
+	/*待修改*/
+	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
+		FMantle_Asset Mantle_1m_2H = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);;
+
+	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
+		FMantle_Asset Mantle_1m_RH = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);;
+	
+	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
+		FMantle_Asset Mantle_1m_Box = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);;
+
 
 #pragma region CameraSystemInterface
 
@@ -34,7 +51,7 @@ public:
 
 	virtual FMantle_Asset GetMantleAsset(EMantleType MantleType) override;
 
-	virtual void MantleStart(float& MantleHeight, FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType& RefMantleType) override;
+	virtual void MantleStart(float MantleHeight,const FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType RefMantleType) override;
 
 	virtual void MantleEnd() override;
 #pragma endregion
