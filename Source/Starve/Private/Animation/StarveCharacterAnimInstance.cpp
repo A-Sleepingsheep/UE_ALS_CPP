@@ -9,6 +9,7 @@
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveVector.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 #include "Interfaces/Starve_CharacterInterface.h"
 
@@ -54,9 +55,12 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	this->DeltaTimeX = DeltaSeconds;
 	if (DeltaTimeX != 0.f) {
 		if (IsValid(CharacterRef)) {
+			/*每帧更新运动信息*/
 			UpdateCharacterInfo();
 			UpdateAimingValues();
-
+			UpdateLayerValues();
+			UpdateFootIK();
+			/*更新不同MovementState状态下的信息*/
 			switch (MovementState)
 			{
 				case EStarve_MovementState::Grounded:{
@@ -602,4 +606,156 @@ void UStarveCharacterAnimInstance::I_JumpedDelayFinish()
 {
 	//UKismetSystemLibrary::PrintString(this, TEXT("I_JumpedDelayFinish"), true, false, FLinearColor::Blue, 5.f);
 	Jumped = false;
+}
+
+void UStarveCharacterAnimInstance::UpdateLayerValues()
+{
+
+}
+
+void UStarveCharacterAnimInstance::UpdateFootIK()
+{
+	FVector FootOffset_L_Target;/*左脚偏移目标量*/
+	FVector FootOffset_R_Target;/*右脚偏移目标量*/
+	/*两个脚步锁定，左右脚*/
+	SetFootLocking(FName("Enable_FootIK_L"), FName("FootLock_L"), FName("ik_foot_l"), FootLock_L_Alpha, FootLock_L_Location, FootLock_L_Rotation);
+	SetFootLocking(FName("Enable_FootIK_R"), FName("FootLock_R"), FName("ik_foot_r"), FootLock_R_Alpha, FootLock_R_Location, FootLock_R_Rotation);
+	
+	//将空中和非空中分开，在非空中时进行IK处理
+	if (MovementState == EStarve_MovementState::None || MovementState == EStarve_MovementState::Grounded || MovementState == EStarve_MovementState::Mantling) {
+		SetFootOffsets(FName("Enable_FootIK_L"), FName("ik_foot_l"), FName("root"), FootOffset_L_Target, FootOffset_L_Location, FootOffset_L_Rotation);
+		SetFootOffsets(FName("Enable_FootIK_R"), FName("ik_foot_r"), FName("root"), FootOffset_R_Target, FootOffset_R_Location, FootOffset_R_Rotation);
+		SetPelvisIKOffset(FootOffset_L_Target, FootOffset_R_Target);
+	}
+	else if (MovementState == EStarve_MovementState::InAir) {
+		SetPelvisIKOffset(FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f));
+		ResetIKOffsets();
+	}
+}
+
+void UStarveCharacterAnimInstance::SetFootLocking(FName EnableFootIKCurve, FName FootLockCuve, FName FootIKBone, float& CurrentFootLockAlpha, FVector& CurrentFootLockLocation, FRotator& CurrentFootLockRotation)
+{
+	/*先进行是否进行脚步锁定的判断*/
+	float enablefootik = GetCurveValue(EnableFootIKCurve);
+	if (enablefootik > 0.f) {
+		/*1、获得脚步锁定的曲线值*/
+		float footlockcurvevalue = GetCurveValue(FootLockCuve);
+
+		/*2、给传入的引用进行赋值*/
+		if (footlockcurvevalue >= 0.99f || footlockcurvevalue < CurrentFootLockAlpha) {
+			CurrentFootLockAlpha = footlockcurvevalue;
+		}
+
+		/*3、使用组件坐标空间给引用的Location和Rotation赋值*/
+		if (CurrentFootLockAlpha >= 0.99f) {
+			/*获取组件坐标系下的Transform*/
+			FTransform rtscomponent = GetOwningComponent()->GetSocketTransform(FootIKBone,ERelativeTransformSpace::RTS_Component);
+			CurrentFootLockLocation = rtscomponent.GetLocation();
+			CurrentFootLockRotation = rtscomponent.Rotator();
+		}
+
+		/*4、进行脚步锁定的处理*/
+		if (CurrentFootLockAlpha > 0.f) {
+			SetFootLockOffsets(CurrentFootLockLocation, CurrentFootLockRotation);
+		}
+	}
+}
+
+void UStarveCharacterAnimInstance::SetFootLockOffsets(FVector& LocalLocation, FRotator& LocalRotation)
+{
+	/*1.获取当前帧跟上一帧的旋转差量*/
+	UCharacterMovementComponent* charactermovecomp = CharacterRef->GetCharacterMovement();
+	FRotator rotationdifferent;
+	if (charactermovecomp->IsMovingOnGround()) {
+		FRotator lastrotation = charactermovecomp->GetLastUpdateRotation();
+		rotationdifferent = UKismetMathLibrary::NormalizedDeltaRotator(CharacterRef->GetActorRotation(), lastrotation);
+	}
+
+	/*2.获取当前帧Location与上一帧相比的差量*/
+	//Velocity * UGameplayStatics::GetWorldDeltaSeconds(this)是表示速度方向一帧前进的距离
+	FVector locationdifferent = GetOwningComponent()->GetComponentRotation().UnrotateVector(Velocity * UGameplayStatics::GetWorldDeltaSeconds(this));
+
+	/*3.通过速度方向的不同给传进来的引用Location在旋转方向上进行赋值*/
+	LocalLocation = UKismetMathLibrary::RotateAngleAxis(LocalLocation - locationdifferent, rotationdifferent.Yaw, FVector(0.f, 0.f, -1.f));
+	
+	/*4.给LocalLocation进行赋值*/
+	LocalRotation = UKismetMathLibrary::NormalizedDeltaRotator(LocalRotation, rotationdifferent);
+}
+
+void UStarveCharacterAnimInstance::SetFootOffsets(FName EnableFootIKCurve, FName IK_FootBone, FName RootBone, FVector& CurrentLocationTarget, FVector& CurrentLocationOffset, FRotator& CurrentRotationOffset)
+{
+	float enablefootik = GetCurveValue(EnableFootIKCurve);
+	if (enablefootik > 0.f) {
+		/*1.从脚部位置向下追踪以找到几何体。如果曲面是可行走的，保存“碰撞位置”和“法线”*/
+		USkeletalMeshComponent* owncomp = GetOwningComponent();
+		FVector footikbonelocation = owncomp->GetSocketLocation(IK_FootBone);
+		FVector rootbonelocation = owncomp->GetSocketLocation(RootBone);
+		/*取脚步位置的XY值，取root骨骼的Z值表示双脚的位置*/
+		FVector ikfootfloorlocation = FVector(footikbonelocation.X, footikbonelocation.Y, rootbonelocation.Z);
+
+		/*进行射线检测*/
+		FVector linestart = ikfootfloorlocation + FVector(0.f, 0.f, IKTraceDistanceAboveFoot);
+		FVector lineend = ikfootfloorlocation - FVector(0.f, 0.f, IKTraceDistanceBlowFoot);
+		FHitResult hitresult;/*保存碰撞信息*/
+		FVector impactpoint;/*碰撞点的位置*/
+		FVector impactnormal;/*碰撞点的法线*/
+		FRotator targetrotationoffset;/*目标骨骼的目标旋转角度*/
+		UKismetSystemLibrary::LineTraceSingle(this, linestart, lineend, TraceTypeQuery1,false, {}, 
+			EDrawDebugTrace::ForOneFrame,hitresult, true);
+		if (CharacterRef->GetCharacterMovement()->IsWalkable(hitresult)) {
+			impactpoint = hitresult.ImpactPoint;
+			impactnormal = hitresult.ImpactNormal;
+			/*CurrentLocationTarget赋值*/
+			CurrentLocationTarget = (impactnormal * FootHeight + impactpoint) - (ikfootfloorlocation + FVector(0.f, 0.f, 1.f) * FootHeight);
+			/*反正切获得角度*/
+			float rolldegree = UKismetMathLibrary::DegAtan2(impactnormal.Y, impactnormal.Z);
+			float pitchdegree = -1.f * UKismetMathLibrary::DegAtan2(impactnormal.X, impactnormal.Z);
+			targetrotationoffset = FRotator(pitchdegree, 0.f, rolldegree);
+		}
+
+		/*2.将“当前位置偏移”插值到新的目标值。根据新目标是高于还是低于当前目标，以不同的速度进行插值。防止脚步瞬移*/
+		if (CurrentLocationOffset.Z > CurrentLocationTarget.Z) {
+			CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, 30.f);
+		}
+		else {
+			CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, 15.f);
+		}
+
+		/*3.将当前旋转偏移赋值到目标旋转*/
+		CurrentRotationOffset = FMath::RInterpTo(CurrentRotationOffset, targetrotationoffset, DeltaTimeX, 30.f);
+
+	}
+	else {
+		/*没有IK修正，将偏移设为0*/
+		CurrentLocationOffset = FVector(0.f, 0.f, 0.f);
+		CurrentRotationOffset = FRotator(0.f, 0.f, 0.f);
+	}
+}
+
+void UStarveCharacterAnimInstance::SetPelvisIKOffset(FVector FootOffset_L_Target, FVector FootOffset_R_Target)
+{
+	/*取两者的加权平均作为PelvisAlpha*/
+	PelvisAlpha = (GetCurveValue(FName("Enable_FootIK_L")) + GetCurveValue(FName("Enable_FootIK_R"))) / 2;
+	if (PelvisAlpha > 0.f) {
+		/*1.根据左右脚偏移的高度来选取合适的PelvisOffset，选取较低的那个*/
+		FVector pelvistarget = FootOffset_L_Target.Z < FootOffset_R_Target.Z ? FootOffset_L_Target : FootOffset_R_Target;
+		
+		/*2.比较pelvistarget跟PelvisOffset的Z值来角色不同的差值速度*/
+		float interpspeed = pelvistarget.Z > PelvisOffset.Z ? 10.f : 15.f;
+		PelvisOffset = FMath::VInterpTo(PelvisOffset, pelvistarget, DeltaTimeX, interpspeed);
+	}
+	else
+	{
+		PelvisOffset = FVector(0.f, 0.f, 0.f);
+	}
+}
+
+void UStarveCharacterAnimInstance::ResetIKOffsets()
+{
+	/*Location 偏移归零*/
+	FootOffset_L_Location = FMath::VInterpTo(FootOffset_L_Location, FVector(0.f, 0.f, 0.f), DeltaTimeX, 15.f);
+	FootOffset_R_Location = FMath::VInterpTo(FootOffset_R_Location, FVector(0.f, 0.f, 0.f), DeltaTimeX, 15.f);
+	/*Rotation 偏移归零*/
+	FootOffset_L_Rotation = FMath::RInterpTo(FootOffset_L_Rotation, FRotator(0.f, 0.f, 0.f), DeltaTimeX, 15.f);
+	FootOffset_R_Rotation = FMath::RInterpTo(FootOffset_R_Rotation, FRotator(0.f, 0.f, 0.f), DeltaTimeX, 15.f);
 }

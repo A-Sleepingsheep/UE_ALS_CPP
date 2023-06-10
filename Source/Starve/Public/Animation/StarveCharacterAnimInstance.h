@@ -266,6 +266,66 @@ private:
 	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float JumpPlayRate;//跳跃动画的速率
 
+	/*左脚锁定的Alpha值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float FootLock_L_Alpha;
+
+	/*右脚锁定的Alpha值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float FootLock_R_Alpha;
+
+	/*左脚锁定的Locatin值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector FootLock_L_Location;
+
+	/*右脚锁定的Locatin值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector FootLock_R_Location;
+
+	/*左脚锁定的Rotation值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator FootLock_L_Rotation;
+
+	/*右脚锁定的Rotation值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator FootLock_R_Rotation;
+
+	/*左脚步IK偏移后的Locatin值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector FootOffset_L_Location;
+
+	/*右脚步IK偏移后的Locatin值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector FootOffset_R_Location;
+
+	/*左脚IK的Rotation偏移值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator FootOffset_L_Rotation;
+
+	/*右脚IK的Rotation偏移值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator FootOffset_R_Rotation;
+
+	/*IK射线向上检测距离,配置变量*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float IKTraceDistanceAboveFoot = 100.f;
+
+	/*IK射线向下检测距离,配置变量*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float IKTraceDistanceBlowFoot = 45.f;
+
+	/*这里是相当于脚踝到脚面的距离,配置变量*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float FootHeight = 13.5f;
+
+	/*人物整体偏移的Alpha值*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float PelvisAlpha;
+
+	/*身体的整体偏移*/
+	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector PelvisOffset;
+
 	//MovementSystem
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/
@@ -346,4 +406,25 @@ private:
 	//延迟Delay结束后调用的函数
 	UFUNCTION()
 	void I_JumpedDelayFinish(); //Delay结束调用函数
+
+	/*每帧更新Layer相关的东西*/
+	void UpdateLayerValues();
+
+	/*每帧更新IK相关的内容*/
+	void UpdateFootIK();
+
+	/*判断是否开启脚步锁定，锁定脚步相关参数的赋值*/
+	void SetFootLocking(FName EnableFootIKCurve, FName FootLockCuve, FName FootIKBone, float& CurrentFootLockAlpha, FVector& CurrentFootLockLocation, FRotator& CurrentFootLockRotation);
+
+	/*脚步锁定的偏移量计算*/
+	void SetFootLockOffsets(FVector& LocalLocation, FRotator& LocalRotation);
+
+	/*移动状态下脚步的IK偏移计算*/
+	void SetFootOffsets(FName EnableFootIKCurve, FName IK_FootBone, FName RootBone, FVector& CurrentLocationTarget, FVector& CurrentLocationOffset, FRotator& CurrentRotationOffset);
+
+	/*通过查找平均脚部IK权重来计算“PelvisAlpha”。如果alpha为0，清除偏移。整体人物的位置偏移*/
+	void SetPelvisIKOffset(FVector FootOffset_L_Target, FVector FootOffset_R_Target);
+
+	/*将IK偏移归零*/
+	void ResetIKOffsets();
 };

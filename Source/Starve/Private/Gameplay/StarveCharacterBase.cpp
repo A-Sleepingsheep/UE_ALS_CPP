@@ -151,6 +151,9 @@ void AStarveCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 	//步行
 	PlayerInputComponent->BindAction("WalkAction", IE_Pressed, this, &AStarveCharacterBase::WalkAction);
+
+	//站立蹲伏切换
+	PlayerInputComponent->BindAction("StanceAction", IE_Pressed, this, &AStarveCharacterBase::StanceAction);
 }
 
 void AStarveCharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
@@ -287,8 +290,6 @@ void AStarveCharacterBase::WalkAction()
 			DesiredGait = EStarve_Gait::Walking;
 			break;
 		}
-		default:
-			break;
 	}
 }
 
@@ -1128,4 +1129,47 @@ bool AStarveCharacterBase::SetActorLocationAndRotationUpdateTarget(FVector NewLo
 {
 	TargetRotation = NewRotator;
 	return SetActorLocationAndRotation(NewLocation, NewRotator,bSweep);
+}
+
+void AStarveCharacterBase::StanceAction()
+{
+	//没有在播放动画蒙太奇的情况下才能执行蹲伏操作
+	if (MovementAction == EStarve_MovementAction::None) {
+
+		if (MovementState == EStarve_MovementState::Grounded) {
+			switch (Stance)
+			{
+				case EStarve_Stance::Standing: {
+					Stance = EStarve_Stance::Crouching;
+					Crouch();
+					break;
+				}
+				case EStarve_Stance::Crouching: {
+					Stance = EStarve_Stance::Standing;
+					UnCrouch();
+					break;
+				}
+			}
+		}
+		else if (MovementState == EStarve_MovementState::InAir) {
+
+		}
+	}
+}
+
+void AStarveCharacterBase::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	OnStanceChanged(EStarve_Stance::Crouching);
+}
+
+void AStarveCharacterBase::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	OnStanceChanged(EStarve_Stance::Standing);
+}
+
+void AStarveCharacterBase::OnStanceChanged(EStarve_Stance NewStance)
+{
+	Stance = NewStance;
 }

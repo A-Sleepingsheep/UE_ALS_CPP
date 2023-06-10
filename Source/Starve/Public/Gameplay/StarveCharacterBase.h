@@ -202,8 +202,6 @@ protected:
 
 	void WalkAction();//冲刺
 
-	void StopWalkAction();//停止冲刺
-
 	void OnCharacterMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0);
 	#pragma endregion
 
@@ -312,4 +310,14 @@ public:
 	/*攀爬更新角色位置和旋转*/
 	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport);
 
+	/*响应站立蹲伏的ActionInput函数*/
+	void StanceAction();
+
+	/*父类中响应Crouch的事件*/
+	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+
+	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+
+	/*响应蹲伏事件要改变的参数*/
+	void OnStanceChanged(EStarve_Stance NewStance);
 };
