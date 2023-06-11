@@ -326,6 +326,42 @@ private:
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	FVector PelvisOffset;
 
+	/*Transition的动画*/
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UAnimSequenceBase* lefttransitionanimtion;
+
+	/*Transition的动画*/
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UAnimSequenceBase* righttransitionanimtion;
+
+	/*Transition的动画*/
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UAnimSequenceBase* stopldowntransitionanimtion;
+
+	/*Transition的动画*/
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UAnimSequenceBase* stoprdowntransitionanimtion;
+
+	/*下落数值方向的速度大小*/
+	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float FallSpeed;
+
+	/*落地时的混合度*/
+	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float LandPredicion;
+
+	/*着地的曲线*/
+	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UCurveFloat* LandPredictionCurve;
+
+	/*在空中的偏移修正曲线*/
+	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UCurveFloat* LeanInAirCurve;
+
+	/*在空中差值的偏移速度*/
+	UPROPERTY(Category = Anim_InAir, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float InAirLeanInterpSpeed = 4.f;
+
 	//MovementSystem
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/
@@ -427,4 +463,57 @@ private:
 
 	/*将IK偏移归零*/
 	void ResetIKOffsets();
+
+	/*动态过渡检测*/
+	void DynamicTransitionCheck();
+
+	/*普通过渡*/
+	void PlayTransition(FDynamicMontageParams Paramters);
+
+	/*动态过渡*/
+	void PlayDynamicTransition(float ReTriggerDelay, FDynamicMontageParams Paramters);
+
+	/*是否动态过渡*/
+	bool bCanPlayDynamicTransition = true;
+
+	/*动态过渡时间处理*/
+	FTimerHandle PlayDynamicTransitionTimer;
+
+	/*动态过渡延迟触发*/
+	UFUNCTION()
+	void PlayDynamicTransitionDelay();
+
+	/*这个是 UKismetAnimationLibrary::K2_DistanceBetweenTwoSocketsAndMapRange() 函数的复制，主要是这个函数在这里无法找到*/
+	static float GetDistanceBetweenTwoSockets(
+		const USkeletalMeshComponent* Component,
+		const FName SocketOrBoneNameA,
+		ERelativeTransformSpace SocketSpaceA,
+		const FName SocketOrBoneNameB,
+		ERelativeTransformSpace SocketSpaceB,
+		bool bRemapRange,
+		float InRangeMin,
+		float InRangeMax,
+		float OutRangeMin,
+		float OutRangeMax);
+
+	/*在State中触发的动画通知N_Stop_L*/
+	UFUNCTION(BlueprintCallable, Category = "StopTransition")
+        void AnimNotify_N_Stop_L(UAnimNotify* Notify);
+
+	/*在State中触发的动画通知N_Stop_R*/
+	UFUNCTION(BlueprintCallable, Category = "StopTransition")
+        void AnimNotify_N_Stop_R(UAnimNotify* Notify);
+
+	/*在State中触发的动画通知StopTransition*/
+	UFUNCTION(BlueprintCallable, Category = "StopTransition")
+        void AnimNotify_StopTransition(UAnimNotify* Notify);
+
+	/*在空中时每帧更新数据*/
+	void UpdateInAirValues();
+
+	/*计算LandPrediction*/
+	float CalculateLandPrediction();
+
+	/*计算空中LeanAmount*/
+	FLeanAmount CalculateInAirLeanAmount();
 };

@@ -150,10 +150,22 @@ struct FDynamicMontageParams
 	GENERATED_BODY()
 
 public:
+	FDynamicMontageParams():Animation(nullptr),BlendInTime(0.f),BlendOutTime(0.f),PlayRate(0.f),StartTime(0.f) {};
+	FDynamicMontageParams(UAnimSequenceBase* AM, float BIT, float BOT, float PR, float ST) :Animation(AM), BlendInTime(BIT), BlendOutTime(BOT), PlayRate(PR), StartTime(ST) {};
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UAnimSequenceBase* Animation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float BlendInTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float BlendOutTime;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float PlayRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float StartTime;
 };
 

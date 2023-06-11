@@ -10,6 +10,7 @@
 #include "Curves/CurveVector.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/CapsuleComponent.h"
 
 #include "Interfaces/Starve_CharacterInterface.h"
 
@@ -40,6 +41,35 @@ UStarveCharacterAnimInstance::UStarveCharacterAnimInstance() {
 		YawOffsetLR = cf5.Object;
 	}
 
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> leftfinder(TEXT("AnimSequence'/Game/MyALS_CPP/CharacterAssets/AnimationExamples/Base/Transitions/Starve_N_Transition_R.Starve_N_Transition_R'"));
+	if (leftfinder.Succeeded()) {
+		lefttransitionanimtion = leftfinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> rightfinder(TEXT("AnimSequence'/Game/MyALS_CPP/CharacterAssets/AnimationExamples/Base/Transitions/Starve_N_Transition_L.Starve_N_Transition_L'"));
+	if (rightfinder.Succeeded()) {
+		righttransitionanimtion = rightfinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> stoplfinder(TEXT("AnimSequence'/Game/MyALS_CPP/CharacterAssets/AnimationExamples/Base/Transitions/Starve_N_Stop_L_Down.Starve_N_Stop_L_Down'"));
+	if (stoplfinder.Succeeded()) {
+		stopldowntransitionanimtion = stoplfinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> stoprfinder(TEXT("AnimSequence'/Game/MyALS_CPP/CharacterAssets/AnimationExamples/Base/Transitions/Starve_N_Stop_R_Down.Starve_N_Stop_R_Down'"));
+	if (stoprfinder.Succeeded()) {
+		stoprdowntransitionanimtion = stoprfinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UCurveFloat> landpredictionfinder(TEXT("CurveFloat'/Game/MyALS_CPP/Data/Curves/LandPredictionBlend.LandPredictionBlend'"));
+	if (landpredictionfinder.Succeeded()) {
+		LandPredictionCurve = landpredictionfinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UCurveFloat> landinairfinder(TEXT("CurveFloat'/Game/MyALS_CPP/Data/Curves/LeanInAirAmount.LeanInAirAmount'"));
+	if (landinairfinder.Succeeded()) {
+		LeanInAirCurve = landinairfinder.Object;
+	}
 }
 
 void UStarveCharacterAnimInstance::NativeInitializeAnimation()
@@ -97,8 +127,9 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 							/*第三步，是否动态过渡*/
 							if (CanDynamicTransition()) {
-
+								DynamicTransitionCheck();
 							}
+
 							break;
 						}
 
@@ -117,8 +148,11 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 					bDoOnce = bShouldMove;
 					break;
 				}
-				//case EStarve_MovementState::InAir:
-				//	break;
+				case EStarve_MovementState::InAir: {
+					UpdateInAirValues();
+					break;
+				}
+
 				//case EStarve_MovementState::Ragdoll:
 				//	break;
 				/*default:
@@ -492,7 +526,7 @@ bool UStarveCharacterAnimInstance::CanTurnInPlace()
 
 bool UStarveCharacterAnimInstance::CanDynamicTransition()
 {
-	return GetCurveValue(FName("Enable_Transition")) == 1.f;
+	return GetCurveValue(FName("Enable_Transition")) >= 0.99f;
 }
 
 void UStarveCharacterAnimInstance::TurnInPlaceCheck()
@@ -758,4 +792,142 @@ void UStarveCharacterAnimInstance::ResetIKOffsets()
 	/*Rotation 偏移归零*/
 	FootOffset_L_Rotation = FMath::RInterpTo(FootOffset_L_Rotation, FRotator(0.f, 0.f, 0.f), DeltaTimeX, 15.f);
 	FootOffset_R_Rotation = FMath::RInterpTo(FootOffset_R_Rotation, FRotator(0.f, 0.f, 0.f), DeltaTimeX, 15.f);
+}
+
+void UStarveCharacterAnimInstance::DynamicTransitionCheck()
+{
+	/*左脚*/
+	//获得两个插槽间的距离
+	FDynamicMontageParams Parameters(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.8f);
+
+	float leftdistance = GetDistanceBetweenTwoSockets(GetOwningComponent(), FName("ik_foot_l"), ERelativeTransformSpace::RTS_Component, FName("VB foot_target_l"), ERelativeTransformSpace::RTS_Component, false, 0.f, 0.f, 0.f, 0.f);
+	if (leftdistance > 8.0f) {
+		PlayDynamicTransition(0.1f, Parameters);
+	}
+
+	/*右脚*/
+	float rightdistance = GetDistanceBetweenTwoSockets(GetOwningComponent(), FName("ik_foot_r"), ERelativeTransformSpace::RTS_Component, FName("VB foot_target_r"), ERelativeTransformSpace::RTS_Component, false, 0.f, 0.f, 0.f, 0.f);
+	if (rightdistance > 8.0f) {
+		Parameters.Animation = righttransitionanimtion;
+		PlayDynamicTransition(0.1f, Parameters);
+	}
+}
+
+void UStarveCharacterAnimInstance::PlayTransition(FDynamicMontageParams Parameters)
+{
+	PlaySlotAnimationAsDynamicMontage(Parameters.Animation, FName("Grounded_Slot"), Parameters.BlendInTime, Parameters.BlendOutTime, Parameters.PlayRate, 1, 0.f, Parameters.StartTime);
+}
+
+void UStarveCharacterAnimInstance::PlayDynamicTransition(float ReTriggerDelay, FDynamicMontageParams Parameters)
+{
+	if (bCanPlayDynamicTransition)
+	{
+		bCanPlayDynamicTransition = false;
+
+		// Play Dynamic Additive Transition Animation
+		PlayTransition(Parameters);
+
+		//UWorld* World = GetWorld();
+		//check(World);
+		//World->GetTimerManager().SetTimer(PlayDynamicTransitionTimer, this,
+		//	&UStarveCharacterAnimInstance::PlayDynamicTransitionDelay,
+		//	ReTriggerDelay, false);
+
+		//使用Delay节点
+		// 创建一个LatentInfo, 用不到Linkage直接传0(不能是-1)， UUID随机生成，指定延迟后要执行的函数ExecutionFunction，ExecutionFunction的归属者this
+		const FLatentActionInfo LatentInfo(0, FMath::Rand(), TEXT("PlayDynamicTransitionDelay"), this);
+		UKismetSystemLibrary::Delay(this, 0.1f, LatentInfo);
+	}
+}
+
+void UStarveCharacterAnimInstance::PlayDynamicTransitionDelay()
+{
+	bCanPlayDynamicTransition = true;
+}
+
+float UStarveCharacterAnimInstance::GetDistanceBetweenTwoSockets(const USkeletalMeshComponent* Component, const FName SocketOrBoneNameA, ERelativeTransformSpace SocketSpaceA, const FName SocketOrBoneNameB, ERelativeTransformSpace SocketSpaceB, bool bRemapRange, float InRangeMin, float InRangeMax, float OutRangeMin, float OutRangeMax)
+{
+	if (Component && SocketOrBoneNameA != NAME_None && SocketOrBoneNameB != NAME_None)
+	{
+		FTransform SocketTransformA = Component->GetSocketTransform(SocketOrBoneNameA, SocketSpaceA);
+		FTransform SocketTransformB = Component->GetSocketTransform(SocketOrBoneNameB, SocketSpaceB);
+
+		float Distance = (SocketTransformB.GetLocation() - SocketTransformA.GetLocation()).Size();
+
+		if (bRemapRange)
+		{
+			return FMath::GetMappedRangeValueClamped(FVector2D(InRangeMin, InRangeMax), FVector2D(OutRangeMin, OutRangeMax), Distance);
+		}
+		else
+		{
+			return Distance;
+		}
+	}
+
+	return 0.f;
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_N_Stop_L(UAnimNotify* Notify)
+{
+	PlayTransition(FDynamicMontageParams(stopldowntransitionanimtion, 0.2f, 0.2f, 1.5f, 0.4f));
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_N_Stop_R(UAnimNotify* Notify)
+{
+	PlayTransition(FDynamicMontageParams(stoprdowntransitionanimtion, 0.2f, 0.2f, 1.5f, 0.4f));
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_StopTransition(UAnimNotify* Notify)
+{
+	StopSlotAnimation(0.2f, FName("Grounded_Slot"));
+	StopSlotAnimation(0.2f, FName("N_Turn_Rotate"));
+	StopSlotAnimation(0.2f, FName("CLF_Turn_Rotate"));
+}
+
+void UStarveCharacterAnimInstance::UpdateInAirValues()
+{
+	/*1.获得下落方向的速度*/
+	FallSpeed = Velocity.Z;
+
+	/*2.计算落地的混合度*/
+	LandPredicion = CalculateLandPrediction();
+
+	/*3.计算空中偏移量，并使当前偏移转至目标偏移*/
+	FLeanAmount target = CalculateInAirLeanAmount();
+	LeanAmount = InterpLeanAmount(LeanAmount, target, InAirLeanInterpSpeed, DeltaTimeX);
+}
+
+float UStarveCharacterAnimInstance::CalculateLandPrediction()
+{
+	if (FallSpeed < -200.f) {
+		//进行胶囊体检测
+		UCapsuleComponent* capsule = CharacterRef->GetCapsuleComponent();
+		FVector start = capsule->GetComponentLocation();
+
+		FVector unsafenormal = FVector(Velocity.X, Velocity.Y, FMath::Clamp(Velocity.Z, -4000.f, -200.f)).GetUnsafeNormal();
+		
+		FVector end = start + unsafenormal * FMath::GetMappedRangeValueClamped(FVector2D(0.f, -4000.f), FVector2D(50.f, 2000.f), Velocity.Z);
+
+		FHitResult hitresult;
+
+		UKismetSystemLibrary::CapsuleTraceSingleByProfile(this,start,end,capsule->GetScaledCapsuleRadius(),
+			capsule->GetScaledCapsuleHalfHeight(), FName("Starve_Character"), false, {},EDrawDebugTrace::ForOneFrame,
+			hitresult,true);
+
+		if (CharacterRef->GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit) {
+			float curvevalue = LandPredictionCurve->GetFloatValue(hitresult.Time);
+			return FMath::Lerp<float>(curvevalue, 0.f, GetCurveValue(FName("Mask_LandPrediction")));
+		}
+	}
+
+	return 0.f;
+}
+
+FLeanAmount UStarveCharacterAnimInstance::CalculateInAirLeanAmount()
+{
+	FVector unrotatevector = (CharacterRef->GetActorRotation().UnrotateVector(Velocity)) / 350.f;
+
+	FVector2D vector2d = FVector2D(unrotatevector.Y, unrotatevector.X) * LeanInAirCurve->GetFloatValue(FallSpeed);
+
+	return FLeanAmount(vector2d.X, vector2d.Y);
 }
