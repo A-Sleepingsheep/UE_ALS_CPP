@@ -497,15 +497,15 @@ private:
 		float OutRangeMax);
 
 	/*在State中触发的动画通知N_Stop_L*/
-	UFUNCTION(BlueprintCallable, Category = "StopTransition")
+	UFUNCTION(BlueprintCallable, Category = "Transition")
         void AnimNotify_N_Stop_L(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知N_Stop_R*/
-	UFUNCTION(BlueprintCallable, Category = "StopTransition")
+	UFUNCTION(BlueprintCallable, Category = "Transition")
         void AnimNotify_N_Stop_R(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知StopTransition*/
-	UFUNCTION(BlueprintCallable, Category = "StopTransition")
+	UFUNCTION(BlueprintCallable, Category = "Transition")
         void AnimNotify_StopTransition(UAnimNotify* Notify);
 
 	/*在空中时每帧更新数据*/
@@ -516,4 +516,8 @@ private:
 
 	/*计算空中LeanAmount*/
 	FLeanAmount CalculateInAirLeanAmount();
+
+	/*在State中触发的动画通知StopTransition*/
+	UFUNCTION(BlueprintCallable, Category = "LandToIdle")
+        void AnimNotify_LandToIdle(UAnimNotify* Notify);
 };

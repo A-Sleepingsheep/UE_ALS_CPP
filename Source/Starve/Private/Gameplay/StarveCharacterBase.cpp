@@ -686,7 +686,7 @@ void AStarveCharacterBase::UpdateDynamicMovementSettings(EStarve_Gait AllowedGai
 
 	/*通过曲线上的信息给角色一些运动信息赋值*/
 	float mapspeed = GetMappedSpeed();
-	FVector curvevector = CurrentMovementSettings.MovementCurve->GetVectorValue(speed);
+	FVector curvevector = CurrentMovementSettings.MovementCurve->GetVectorValue(mapspeed);
 	GetCharacterMovement()->MaxAcceleration = curvevector.X;//加速度
 	GetCharacterMovement()->BrakingDecelerationWalking = curvevector.Y;//制动减速
 	GetCharacterMovement()->GroundFriction = curvevector.Z;//地面摩擦力
@@ -1173,3 +1173,20 @@ void AStarveCharacterBase::OnStanceChanged(EStarve_Stance NewStance)
 {
 	Stance = NewStance;
 }
+
+void AStarveCharacterBase::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	float f1 = bHasMovementInput ? 0.5f : 3.f;
+	GetCharacterMovement()->BrakingFrictionFactor = f1;
+
+	const FLatentActionInfo LandedActionInfo(0, FMath::Rand(), TEXT("LandedDelay"), this);
+	UKismetSystemLibrary::RetriggerableDelay(this, 0.5f, LandedActionInfo);
+}
+
+void AStarveCharacterBase::LandedDelay()
+{
+	GetCharacterMovement()->BrakingFrictionFactor = 0.f;
+}
+

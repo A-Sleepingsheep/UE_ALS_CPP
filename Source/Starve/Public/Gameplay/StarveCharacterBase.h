@@ -320,4 +320,11 @@ public:
 
 	/*响应蹲伏事件要改变的参数*/
 	void OnStanceChanged(EStarve_Stance NewStance);
+
+	/*相应事件着陆时*/
+	virtual void Landed(const FHitResult& Hit) override;
+
+	/*着落延迟相应函数*/
+	UFUNCTION()
+	void LandedDelay();
 };

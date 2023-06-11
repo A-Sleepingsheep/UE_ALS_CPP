@@ -931,3 +931,8 @@ FLeanAmount UStarveCharacterAnimInstance::CalculateInAirLeanAmount()
 
 	return FLeanAmount(vector2d.X, vector2d.Y);
 }
+
+void UStarveCharacterAnimInstance::AnimNotify_LandToIdle(UAnimNotify* Notify)
+{
+	PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.1f, 0.2f, 1.4f, 0.f));
+}
