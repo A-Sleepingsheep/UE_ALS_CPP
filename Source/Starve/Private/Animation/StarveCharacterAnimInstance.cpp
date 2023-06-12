@@ -531,7 +531,7 @@ bool UStarveCharacterAnimInstance::CanDynamicTransition()
 
 void UStarveCharacterAnimInstance::TurnInPlaceCheck()
 {
-	/*1、*/
+	/*1、检查瞄准角度是否在转弯检查最小角度之外，以及目标横摆角速率是否低于目标横摆率限制。如果是，请开始计算经过的延迟时间。如果没有，请重置“经过的延迟时间”。这确保了在转变到位之前，条件在一段持续的时间内保持不变。*/
 	if (FMath::Abs(AimingAngle.X) > TurnCheckMinAngle && AimYawRate < AimYawRateLimit) {
 		ElapsedDelayTime += DeltaTimeX;
 		//通过映射角度获得转向开始前延迟的时间（角度小的延迟较大，角度大的延迟较小）
@@ -935,4 +935,19 @@ FLeanAmount UStarveCharacterAnimInstance::CalculateInAirLeanAmount()
 void UStarveCharacterAnimInstance::AnimNotify_LandToIdle(UAnimNotify* Notify)
 {
 	PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.1f, 0.2f, 1.4f, 0.f));
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_To_CLF_Stop(UAnimNotify* Notify)
+{
+	PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.2f));
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_To_N_QuickStop(UAnimNotify* Notify)
+{
+	PlayTransition(FDynamicMontageParams(righttransitionanimtion, 0.1f, 0.2f, 1.75f, 0.3f));
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_RollToIdle(UAnimNotify* Notify)
+{
+	PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.2f));
 }

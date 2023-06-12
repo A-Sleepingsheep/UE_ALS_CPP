@@ -37,6 +37,10 @@ public:
 	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
 		FMantle_Asset Mantle_1m_Box = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);;
 
+	/*默认的翻滚蒙太奇*/
+	UPROPERTY(Category = "Roll", EditAnywhere, BlueprintReadWrite)
+		UAnimMontage* LandRollDefault;
+
 
 #pragma region CameraSystemInterface
 
@@ -54,5 +58,7 @@ public:
 	virtual void MantleStart(float MantleHeight,const FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType RefMantleType) override;
 
 	virtual void MantleEnd() override;
+
+	virtual UAnimMontage* GetRollAnimation() override;
 #pragma endregion
 };

@@ -172,6 +172,10 @@ private:
 	
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	bool bPivot;//Pivot,动画通知修改
+
+	//从什么状态进入Grounded状态
+	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EGroundedEntryState GroudedEntryState;
 	
 	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float TriggerPivotLimitSpeed = 200.f;//Pivot,State中有Pivot动画通知的时候修改
@@ -203,32 +207,41 @@ private:
 	UPROPERTY(Category = "TurnInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float MaxAngleDelay = 0.f;//最大角度转向前延迟时间
 
+	//站立左转90，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_L90;//站立左转90
+		FTurnInPlace_Asset N_TurnIP_L90;
 
+	//站立右转90，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_R90;//站立右转90
+		FTurnInPlace_Asset N_TurnIP_R90;
 
+	//站立左转180，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_L180;//站立左转180
+		FTurnInPlace_Asset N_TurnIP_L180;
 
+	//站立右转180，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_R180;//站立右转180
+		FTurnInPlace_Asset N_TurnIP_R180;
 
+	//蹲伏左转90，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_L90;//蹲伏左转90
+		FTurnInPlace_Asset CLF_TurnIP_L90;
 
+	//蹲伏右转90，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_R90;//蹲伏右转90
+		FTurnInPlace_Asset CLF_TurnIP_R90;
 
+	//蹲伏左转180，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_L180;//蹲伏左转180
+		FTurnInPlace_Asset CLF_TurnIP_L180;
 
+	//蹲伏右转180，在蓝图中进行赋值
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_R180;//蹲伏右转180
+		FTurnInPlace_Asset CLF_TurnIP_R180;
 
+	//根据这个阈值判断是否旋转180还是90
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float Turn180Threshold = 130.f;//根据这个阈值判断是否旋转180还是90
+	float Turn180Threshold = 130.f;
 
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float RotationScale;//原地转向的缩放
@@ -517,7 +530,19 @@ private:
 	/*计算空中LeanAmount*/
 	FLeanAmount CalculateInAirLeanAmount();
 
-	/*在State中触发的动画通知StopTransition*/
+	/*在State中触发的动画通知LandToIdle*/
 	UFUNCTION(BlueprintCallable, Category = "LandToIdle")
         void AnimNotify_LandToIdle(UAnimNotify* Notify);
+
+	/*在State中触发的动画通知To_CLF_Stop*/
+	UFUNCTION(BlueprintCallable, Category = "Stop")
+        void AnimNotify_To_CLF_Stop(UAnimNotify* Notify);
+
+	/*在State中触发的动画通知To_N_QuickStop*/
+	UFUNCTION(BlueprintCallable, Category = "Stop")
+        void AnimNotify_To_N_QuickStop(UAnimNotify* Notify);
+
+	/*在State中触发的动画通知RollToIdle*/
+	UFUNCTION(BlueprintCallable, Category = "Stop")
+        void AnimNotify_RollToIdle(UAnimNotify* Notify);
 };

@@ -41,6 +41,11 @@ AStarveCharacter::AStarveCharacter() {
 		Mantle_1m_Default.AnimMontage = am_mantle_1m_default.Object;
 	}
 
+	//LandRollDefault
+	static ConstructorHelpers::FObjectFinder<UAnimMontage> landrolldefault(TEXT("AnimMontage'/Game/MyALS_CPP/CharacterAssets/AnimationExamples/Actions/Starve_N_LandRoll_F_Montage_Default.Starve_N_LandRoll_F_Montage_Default'"));
+	if (landrolldefault.Succeeded()) {
+		LandRollDefault = landrolldefault.Object;
+	}
 }
 
 #pragma region CameraInterfaceDefinition
@@ -139,6 +144,17 @@ void AStarveCharacter::MantleStart(float MantleHeight,const FStarve_ComponentAnd
 void AStarveCharacter::MantleEnd()
 {
 	Super::MantleEnd();
+}
+
+UAnimMontage* AStarveCharacter::GetRollAnimation()
+{
+	switch (OverlayState)
+	{
+		case EStarve_OverlayState::Default: {
+			return LandRollDefault;
+		}
+	}
+	return LandRollDefault;
 }
 
 #pragma endregion

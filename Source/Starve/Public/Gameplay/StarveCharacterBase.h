@@ -158,6 +158,15 @@ protected:
 	/*时间轴所用的曲线*/
 	UPROPERTY(Category = MantleSystem,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* MantleTimelineCurve;
+
+	/*是否打断下落执行翻滚*/
+	UPROPERTY(Category = Roll,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool bBreakfall;
+
+	/*多次点击次数*/
+	UPROPERTY(Category = Roll,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	int PressCount = 0;
+
 	#pragma endregion
 
 
@@ -327,4 +336,23 @@ public:
 	/*着落延迟相应函数*/
 	UFUNCTION()
 	void LandedDelay();
+
+	/*翻滚事件*/
+	void RollEvent();
+
+	/*在着陆前的那一刻执行翻滚的事件*/
+	void BreakfallEvent();
+
+	/*获取Roll翻滚需要播放的蒙太奇动画，子类重写*/
+	virtual UAnimMontage* GetRollAnimation();
+
+	/*是否连续输入,false表示一次，true表示多次*/
+	bool MultiTapInput(float ResetTime);
+
+	/*判断是否连续输入后触发*/
+	UFUNCTION()
+	void MultiTapInputDelay();
+
+	/*布娃娃系统开始*/
+	void RagdollStart();
 };

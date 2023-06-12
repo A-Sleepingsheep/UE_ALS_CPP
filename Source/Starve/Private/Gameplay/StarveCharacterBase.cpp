@@ -463,7 +463,33 @@ void AStarveCharacterBase::I_SetOverlayState(EStarve_OverlayState NewOverlayStat
 void AStarveCharacterBase::OnMovementStateChanged(EStarve_MovementState NewMovementState)
 {
 	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_MovementState>(NewMovementState, this->MovementState, this->PrevMovementState);
-
+	switch (MovementState)
+	{
+		case EStarve_MovementState::InAir: {
+			switch (MovementAction)
+			{
+				case EStarve_MovementAction::None: {
+					InAirRotation = GetActorRotation();
+					if (Stance == EStarve_Stance::Crouching) {
+						UnCrouch();
+					}
+					break;
+				}
+				case EStarve_MovementAction::Rolling: {
+					RagdollStart();
+					break;
+				}
+			}
+			break;
+		}
+		case EStarve_MovementState::Ragdoll: {
+			//开启布娃娃系统的时候停止攀爬，防止摄像机镜头出现问题
+			if (PrevMovementState == EStarve_MovementState::Mantling) {
+				MantleTimeline->Stop();
+			}
+			break;
+		}
+	}
 }
 
 void AStarveCharacterBase::OnMovementActionChanged(EStarve_MovementAction NewMovementAction)
@@ -471,12 +497,32 @@ void AStarveCharacterBase::OnMovementActionChanged(EStarve_MovementAction NewMov
 	EStarve_MovementAction PrevMovementAction;
 	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_MovementAction>(NewMovementAction, this->MovementAction, PrevMovementAction);
 
+	if (MovementAction == EStarve_MovementAction::Rolling) {
+		Crouch();
+	}
+
+	if (PrevMovementAction == EStarve_MovementAction::Rolling) {
+		switch (DesiredStance)
+		{
+			case EStarve_Stance::Standing:
+				UnCrouch();
+				break;
+
+			case EStarve_Stance::Crouching:
+				Crouch();
+				break;
+		}
+	}
 }
 
 void AStarveCharacterBase::OnRotationModeChanged(EStarve_RotationMode NewRotationMode)
 {
 	EStarve_RotationMode PrevRotationMode;
 	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_RotationMode>(NewRotationMode, this->RotationMode, PrevRotationMode);
+	
+	if (RotationMode == EStarve_RotationMode::VelocityDirection && ViewMode == EStarve_ViewMode::FirstPerson) {
+		I_SetViewMode(EStarve_ViewMode::ThirdPerson);
+	}
 }
 
 void AStarveCharacterBase::OnGaitChanged(EStarve_Gait NewGait)
@@ -490,7 +536,20 @@ void AStarveCharacterBase::OnViewModeChanged(EStarve_ViewMode NewViewMode)
 {
 	EStarve_ViewMode PrevViewMode;
 	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_ViewMode>(NewViewMode, this->ViewMode, PrevViewMode);
-
+	switch (ViewMode)
+	{
+		case EStarve_ViewMode::ThirdPerson:
+			if (RotationMode == EStarve_RotationMode::VelocityDirection|| RotationMode == EStarve_RotationMode::LookingDirection) {
+				I_SetRotationMode(DesiredRotationMode);
+				break;
+			}
+		case EStarve_ViewMode::FirstPerson: {
+			if (RotationMode == EStarve_RotationMode::VelocityDirection) {
+				I_SetRotationMode(EStarve_RotationMode::LookingDirection);
+				break;
+			}
+		}
+	}
 }
 
 void AStarveCharacterBase::OnOverlayStateChanged(EStarve_OverlayState NewOverlayState)
@@ -1135,23 +1194,41 @@ void AStarveCharacterBase::StanceAction()
 {
 	//没有在播放动画蒙太奇的情况下才能执行蹲伏操作
 	if (MovementAction == EStarve_MovementAction::None) {
-
-		if (MovementState == EStarve_MovementState::Grounded) {
+		//是否有多次输入
+		if (MultiTapInput(0.3f)) {
+			/*有多次按下就执行翻滚*/
+			RollEvent();
 			switch (Stance)
 			{
 				case EStarve_Stance::Standing: {
 					Stance = EStarve_Stance::Crouching;
-					Crouch();
 					break;
 				}
 				case EStarve_Stance::Crouching: {
 					Stance = EStarve_Stance::Standing;
-					UnCrouch();
 					break;
 				}
 			}
 		}
-		else if (MovementState == EStarve_MovementState::InAir) {
+		else {
+			if (MovementState == EStarve_MovementState::Grounded) {
+				switch (Stance)
+				{
+					case EStarve_Stance::Standing: {
+						Stance = EStarve_Stance::Crouching;
+						Crouch();
+						break;
+					}
+					case EStarve_Stance::Crouching: {
+						Stance = EStarve_Stance::Standing;
+						UnCrouch();
+						break;
+					}
+				}
+			}
+			else if (MovementState == EStarve_MovementState::InAir) {
+
+			}
 
 		}
 	}
@@ -1188,5 +1265,43 @@ void AStarveCharacterBase::Landed(const FHitResult& Hit)
 void AStarveCharacterBase::LandedDelay()
 {
 	GetCharacterMovement()->BrakingFrictionFactor = 0.f;
+}
+
+void AStarveCharacterBase::RollEvent()
+{
+	if (IsValid(MainAnimInstance)) {
+		MainAnimInstance->Montage_Play(GetRollAnimation(),1.35f);
+	}
+}
+
+void AStarveCharacterBase::BreakfallEvent()
+{
+	if (IsValid(MainAnimInstance)) {
+		MainAnimInstance->Montage_Play(GetRollAnimation(), 1.35f);
+	}
+}
+
+UAnimMontage* AStarveCharacterBase::GetRollAnimation()
+{
+	return nullptr;
+}
+
+bool AStarveCharacterBase::MultiTapInput(float ResetTime)
+{
+	PressCount += 1;
+
+	const FLatentActionInfo MultiInputInfo(0, FMath::Rand(), TEXT("MultiTapInputDelay"), this);
+	UKismetSystemLibrary::RetriggerableDelay(this, ResetTime, MultiInputInfo);
+
+	return PressCount < 2 ? false : true;
+}
+
+void AStarveCharacterBase::MultiTapInputDelay()
+{
+	PressCount = 0;
+}
+
+void AStarveCharacterBase::RagdollStart()
+{
 }
 
