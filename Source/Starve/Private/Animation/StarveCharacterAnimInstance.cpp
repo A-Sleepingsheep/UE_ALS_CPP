@@ -644,13 +644,38 @@ void UStarveCharacterAnimInstance::I_JumpedDelayFinish()
 
 void UStarveCharacterAnimInstance::UpdateLayerValues()
 {
+	/*1.*/
+	Enable_AnimOffset = FMath::Lerp(1.f, 0.f, GetAnimCurveCompact(FName("Mask_AimOffset")));
 
+	/*2.*/
+	BasePose_N = GetAnimCurveCompact(FName("BasePose_N"));
+	BasePose_CLF = GetAnimCurveCompact(FName("BasePose_CLF"));
+
+	/*3.*/
+	Spine_Add =GetAnimCurveCompact(FName("Layering_Spine_Add"));
+	Head_Add =  GetAnimCurveCompact(FName("Layering_Head_Add"));
+	Arm_L_Add =  GetAnimCurveCompact(FName("Layering_Arm_L_Add"));
+	Arm_R_Add =  GetAnimCurveCompact(FName("Layering_Arm_R_Add"));
+
+	/*4.*/
+	Hand_L = GetAnimCurveCompact(FName("Layering_Hand_L"));
+	Hand_R = GetAnimCurveCompact(FName("Layering_Hand_R"));
+
+	/*5.*/
+	Enable_HandIK_L = FMath::Lerp(1.f, GetAnimCurveCompact(FName("Enable_HandIK_L")), GetAnimCurveCompact(FName("Layering_Arm_L")));
+	Enable_HandIK_R = FMath::Lerp(1.f, GetAnimCurveCompact(FName("Enable_HandIK_R")), GetAnimCurveCompact(FName("Layering_Arm_R")));
+
+	/*6.*/
+	Arm_L_LS = GetAnimCurveCompact(FName("Layering_Arm_L_LS"));
+	Arm_R_LS = GetAnimCurveCompact(FName("Layering_Arm_R_LS"));
+	Arm_L_MS = (float)(1 - FMath::FloorToInt(Arm_L_LS));
+	Arm_R_MS = (float)(1- FMath::FloorToInt(Arm_R_LS));
 }
 
 void UStarveCharacterAnimInstance::UpdateFootIK()
 {
-	FVector FootOffset_L_Target;/*左脚偏移目标量*/
-	FVector FootOffset_R_Target;/*右脚偏移目标量*/
+	FVector FootOffset_L_Target(0.f,0.f,0.f);/*左脚偏移目标量*/
+	FVector FootOffset_R_Target(0.f, 0.f, 0.f);/*右脚偏移目标量*/
 	/*两个脚步锁定，左右脚*/
 	SetFootLocking(FName("Enable_FootIK_L"), FName("FootLock_L"), FName("ik_foot_l"), FootLock_L_Alpha, FootLock_L_Location, FootLock_L_Rotation);
 	SetFootLocking(FName("Enable_FootIK_R"), FName("FootLock_R"), FName("ik_foot_r"), FootLock_R_Alpha, FootLock_R_Location, FootLock_R_Rotation);
@@ -734,8 +759,9 @@ void UStarveCharacterAnimInstance::SetFootOffsets(FName EnableFootIKCurve, FName
 		FVector impactpoint;/*碰撞点的位置*/
 		FVector impactnormal;/*碰撞点的法线*/
 		FRotator targetrotationoffset;/*目标骨骼的目标旋转角度*/
-		UKismetSystemLibrary::LineTraceSingle(this, linestart, lineend, TraceTypeQuery1,false, {}, 
-			EDrawDebugTrace::ForOneFrame,hitresult, true);
+		bool bhit = UKismetSystemLibrary::LineTraceSingle(this, linestart, lineend, TraceTypeQuery1,false, {}, 
+			EDrawDebugTrace::ForOneFrame,hitresult, true,FLinearColor::Red,FLinearColor::Blue);
+
 		if (CharacterRef->GetCharacterMovement()->IsWalkable(hitresult)) {
 			impactpoint = hitresult.ImpactPoint;
 			impactnormal = hitresult.ImpactNormal;
@@ -746,7 +772,7 @@ void UStarveCharacterAnimInstance::SetFootOffsets(FName EnableFootIKCurve, FName
 			float pitchdegree = -1.f * UKismetMathLibrary::DegAtan2(impactnormal.X, impactnormal.Z);
 			targetrotationoffset = FRotator(pitchdegree, 0.f, rolldegree);
 		}
-
+	
 		/*2.将“当前位置偏移”插值到新的目标值。根据新目标是高于还是低于当前目标，以不同的速度进行插值。防止脚步瞬移*/
 		if (CurrentLocationOffset.Z > CurrentLocationTarget.Z) {
 			CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, 30.f);
@@ -754,10 +780,9 @@ void UStarveCharacterAnimInstance::SetFootOffsets(FName EnableFootIKCurve, FName
 		else {
 			CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, 15.f);
 		}
-
+	
 		/*3.将当前旋转偏移赋值到目标旋转*/
 		CurrentRotationOffset = FMath::RInterpTo(CurrentRotationOffset, targetrotationoffset, DeltaTimeX, 30.f);
-
 	}
 	else {
 		/*没有IK修正，将偏移设为0*/
@@ -950,4 +975,9 @@ void UStarveCharacterAnimInstance::AnimNotify_To_N_QuickStop(UAnimNotify* Notify
 void UStarveCharacterAnimInstance::AnimNotify_RollToIdle(UAnimNotify* Notify)
 {
 	PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.2f));
+}
+
+float UStarveCharacterAnimInstance::GetAnimCurveCompact(FName CurveName)
+{
+	return GetCurveValue(CurveName);
 }

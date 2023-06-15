@@ -111,6 +111,7 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 
 	/*第一步*/
 	SetEssentialValues(); //获得主要的角色信息
+
 	if (MovementState == EStarve_MovementState::Grounded) {
 		UpdateCharacterMovement(); //更新角色在地面上的移动信息
 		UpdateGroundedRotation();//更新在地面上的旋转信息
@@ -124,10 +125,11 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 		}
 	}
 
+	/*第二步，保存当前的某些信息*/
 	CacheValus();
 
 	//UKismetSystemLibrary::PrintString(this, FString::SanitizeFloat(Speed),true,false,FLinearColor::Blue,0.f);
-	/*第二步，保存当前的某些信息*/
+
 
 
 }
@@ -494,7 +496,7 @@ void AStarveCharacterBase::OnMovementStateChanged(EStarve_MovementState NewMovem
 
 void AStarveCharacterBase::OnMovementActionChanged(EStarve_MovementAction NewMovementAction)
 {
-	EStarve_MovementAction PrevMovementAction;
+	EStarve_MovementAction PrevMovementAction = EStarve_MovementAction::None;
 	UStarve_MacroLibrary::ML_SetPreviousAndNewValue<EStarve_MovementAction>(NewMovementAction, this->MovementAction, PrevMovementAction);
 
 	if (MovementAction == EStarve_MovementAction::Rolling) {
@@ -910,8 +912,6 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 {
 	/*1、处于空中时进行胶囊体检测，获得一些碰撞的基础数据*/
 	//MantleCheck检测所需要用的局部变量
-	FVector InitialTrace_ImpactPoint;/*实际碰撞到的点位置*/
-	FVector InitialTrace_Normal;/*碰撞点处的法线*/
 
 	//胶囊体检测需要用到的变量
 	float max_p_min = TraceSettings.MaxLedgeHeight + TraceSettings.MinLedgeHeight;
@@ -930,6 +930,9 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 		ETraceTypeQuery::TraceTypeQuery1, false, {}, DebugTrace, hitresult, true,
 		FLinearColor::Black, FLinearColor::Blue, 1.0f);
 
+	FVector InitialTrace_ImpactPoint;/*实际碰撞到的点位置*/
+	FVector InitialTrace_Normal;/*碰撞点处的法线*/
+
 	//GetCharacterMovement()->IsWalkable(hitresult)判断碰撞检测的结构是否能过行走
 	if (!GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit && !hitresult.bStartPenetrating) {
 		//不能进行行走但是有碰撞
@@ -943,14 +946,13 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 	}
 
 	/*2、再通过一个球体检测检测可攀爬的地方能否容纳角色的地方*/
-
-	FVector DownTraceLocation;/*存放下面球形检测需要的结果*/
-	UPrimitiveComponent* HitComponent = NULL;/*存放碰撞到的组件*/
-
 	end = FVector(InitialTrace_ImpactPoint.X, InitialTrace_ImpactPoint.Y, basecapsulelocation.Z) + (-15.f * InitialTrace_Normal);
 	start = end + FVector(0.f, 0.f, TraceSettings.MaxLedgeHeight + TraceSettings.DownwardTracrRadius + 1.f);
 	UKismetSystemLibrary::SphereTraceSingle(this, start, end, TraceSettings.DownwardTracrRadius, ETraceTypeQuery::TraceTypeQuery1,
 		false, {}, DebugTrace, hitresult, true, FLinearColor::Yellow, FLinearColor::Red, 1.f);
+
+	FVector DownTraceLocation;/*存放下面球形检测需要的结果*/
+	UPrimitiveComponent* HitComponent = NULL;/*存放碰撞到的组件*/
 
 	if (GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit) {
 		DownTraceLocation = FVector(hitresult.Location.X, hitresult.Location.Y, hitresult.ImpactPoint.Z);
@@ -1175,7 +1177,8 @@ void AStarveCharacterBase::MantleUpdate(float BlendIn)
 	FTransform lerpedtarget = UKismetMathLibrary::TLerp(needtransform2, lerp1, BlendIn);
 
 	/*4、将 Actor 的位置和旋转设置为 LerpedTarget*/
-	SetActorLocationAndRotationUpdateTarget(lerpedtarget.GetLocation(), lerpedtarget.Rotator(), false, false);
+	FHitResult hitresult;
+	SetActorLocationAndRotationUpdateTarget(lerpedtarget.GetLocation(), lerpedtarget.Rotator(), false,hitresult, false);
 
 }
 
@@ -1184,10 +1187,10 @@ void AStarveCharacterBase::MantleEnd()
 	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
 }
 
-bool AStarveCharacterBase::SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport)
+bool AStarveCharacterBase::SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, FHitResult& HitResult, bool bTeleport)
 {
 	TargetRotation = NewRotator;
-	return SetActorLocationAndRotation(NewLocation, NewRotator,bSweep);
+	return K2_SetActorLocationAndRotation(NewLocation, NewRotator, bSweep, HitResult, bTeleport);
 }
 
 void AStarveCharacterBase::StanceAction()
@@ -1201,11 +1204,11 @@ void AStarveCharacterBase::StanceAction()
 			switch (Stance)
 			{
 				case EStarve_Stance::Standing: {
-					Stance = EStarve_Stance::Crouching;
+					DesiredStance = EStarve_Stance::Crouching;
 					break;
 				}
 				case EStarve_Stance::Crouching: {
-					Stance = EStarve_Stance::Standing;
+					DesiredStance = EStarve_Stance::Standing;
 					break;
 				}
 			}
@@ -1215,12 +1218,12 @@ void AStarveCharacterBase::StanceAction()
 				switch (Stance)
 				{
 					case EStarve_Stance::Standing: {
-						Stance = EStarve_Stance::Crouching;
+						DesiredStance = EStarve_Stance::Crouching;
 						Crouch();
 						break;
 					}
 					case EStarve_Stance::Crouching: {
-						Stance = EStarve_Stance::Standing;
+						DesiredStance = EStarve_Stance::Standing;
 						UnCrouch();
 						break;
 					}

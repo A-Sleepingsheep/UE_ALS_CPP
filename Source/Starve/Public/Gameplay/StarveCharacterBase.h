@@ -317,7 +317,7 @@ public:
 	virtual void MantleEnd();
 
 	/*攀爬更新角色位置和旋转*/
-	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, bool bTeleport);
+	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, FHitResult& HitResult, bool bTeleport);
 
 	/*响应站立蹲伏的ActionInput函数*/
 	void StanceAction();

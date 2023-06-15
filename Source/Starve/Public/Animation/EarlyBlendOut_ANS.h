@@ -46,7 +46,7 @@ public:
 
 	AActor* OwingActor;
 
-	FString GetNotifyName() const;
+	FString GetNotifyName_Implementation() const;
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
 

@@ -375,6 +375,55 @@ private:
 	UPROPERTY(Category = Anim_InAir, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float InAirLeanInterpSpeed = 4.f;
 
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Enable_AnimOffset;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float BasePose_N;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float BasePose_CLF;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Spine_Add;
+	
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Head_Add;
+	
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Arm_L_Add;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Arm_R_Add;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Hand_L;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Hand_R;
+
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Enable_HandIK_L;
+	
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Enable_HandIK_R;
+	
+	/*LocalSpace的左手臂*/
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Arm_L_LS;
+		
+	/*LocalSpace的右手臂*/
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Arm_R_LS;
+	
+	/*MeshSpace的左手臂*/
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Arm_L_MS;
+		
+	/*MeshSpace的右手臂*/
+	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Arm_R_MS;
+
 	//MovementSystem
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/
@@ -545,4 +594,6 @@ private:
 	/*在State中触发的动画通知RollToIdle*/
 	UFUNCTION(BlueprintCallable, Category = "Stop")
         void AnimNotify_RollToIdle(UAnimNotify* Notify);
+
+	float GetAnimCurveCompact(FName CurveName);
 };

@@ -8,7 +8,7 @@
 #include "Interfaces/Starve_CharacterInterface.h"
 
 
-FString UEarlyBlendOut_ANS::GetNotifyName() const
+FString UEarlyBlendOut_ANS::GetNotifyName_Implementation() const
 {
 	return FString("EarlyBlendOut");
 }
