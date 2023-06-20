@@ -167,17 +167,44 @@ protected:
 	UPROPERTY(Category = Roll,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	int PressCount = 0;
 
+	/*Ragdoll是否在地面上*/
+	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool bRagdollOnGround;
+	
+	/*Ragdoll是否起身*/
+	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool bRagdollFaceUp;
+
+	/*Ragdoll前的速度*/
+	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector LastRagdollVelocity;
+
 	#pragma endregion
 
 
 	#pragma region CharacterEnums
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_MovementState MovementState;  //当前状态
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_MovementState PrevMovementState;//上一帧的状态
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_MovementAction MovementAction;
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_RotationMode RotationMode;
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_Gait Gait; //主要状态
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_ViewMode ViewMode;
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_OverlayState OverlayState;
+
+	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_Stance Stance;
 	#pragma endregion
 
@@ -228,13 +255,16 @@ protected:
 public:
 	#pragma region CameraInterface
 	virtual FVector Get_FP_CameraTarget() override;
+
 	virtual FTransform Get_TP_PivotTarget() override;
+
 	virtual float Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery& TraceChannel) override;
 	virtual bool Get_CameraParameters(float& TP_FOV, float& FP_FOV) override;
 	#pragma endregion
 
 
 	#pragma region CharacterInterfaceGerInformation
+	UFUNCTION(BlueprintCallable)
 	virtual FStarveCharacterState I_GetCurrentState() override; //返回枚举状态的信息
 	virtual FEssentialValues I_GetEssentialValues() override;  //将在Tick中获取的主要信息传递出去	
 
@@ -243,6 +273,8 @@ public:
 	virtual void I_SetRotationMode(EStarve_RotationMode NewRotationMode) override;	/*设置摄像机旋转模式*/
 	virtual void I_SetGait(EStarve_Gait NewGait) override;	/*设置主行走状态*/
 	virtual void I_SetViewMode(EStarve_ViewMode NewViewMode) override;	/*设置视角模式*/
+
+	UFUNCTION(BlueprintCallable)
 	virtual void I_SetOverlayState(EStarve_OverlayState NewOverlayState) override;	/*设置叠加状态*/
 	#pragma endregion
 
@@ -252,7 +284,7 @@ public:
 	void OnRotationModeChanged(EStarve_RotationMode NewRotationMode);
 	void OnGaitChanged(EStarve_Gait NewGait);
 	void OnViewModeChanged(EStarve_ViewMode NewViewMode);
-	void OnOverlayStateChanged(EStarve_OverlayState NewOverlayState);
+	virtual void OnOverlayStateChanged(EStarve_OverlayState NewOverlayState);
 	#pragma endregion
 
 	#pragma region OnBeginPlayFunctions
@@ -355,4 +387,40 @@ public:
 
 	/*布娃娃系统开始*/
 	void RagdollStart();
+
+	/*布娃娃系统结束*/
+	void RagdollEnd();
+
+	/*响应AimAction按下时间*/
+	void AimPressedAction();
+
+	/*响应AimAction松开事件*/
+	void AimReleasedAction();
+
+	/*响应AimAction按下时间*/
+	void CameraPressedAction();
+
+	/*响应AimAction松开事件*/
+	void CameraReleasedAction();
+
+	///*是否长按*/
+	//bool HoldInput(float WaitTime);
+
+	///*判断是否长按的bool值*/
+	//bool bIsHold;
+
+	///*HoldInputDelay*/
+	//void HoldInputDelay();
+
+	/*开启Ragdoll系统*/
+	void RagdollPressedAction();
+
+	/*获得Ragdoll起身的动画蒙太奇,子类重载*/
+	virtual UAnimMontage* GetGetUpAnimation(bool RagdollFaceUp);
+
+	/*Ragdoll每帧更新*/
+	void RagdollUpdate();
+
+	/*更新Ragdoll时角色的位置*/
+	void SetActorLocationDuringRagdoll();
 };

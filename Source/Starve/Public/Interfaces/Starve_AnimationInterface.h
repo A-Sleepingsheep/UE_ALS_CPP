@@ -28,5 +28,5 @@ class STARVE_API IStarve_AnimationInterface
 public:
 	virtual void I_Jumped() = 0;
 	virtual void I_SetGroundedEntryState(EGroundedEntryState GroundEntryState) = 0;
-	virtual void I_SetOverlayOverrideState(int OverlatOverrideState) = 0;
+	virtual void I_SetOverlayOverrideState(int OverlayOverrideState) = 0;
 };

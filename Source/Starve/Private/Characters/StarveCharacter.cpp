@@ -6,9 +6,30 @@
 
 
 AStarveCharacter::AStarveCharacter() {
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkeleMesh(TEXT("SkeletalMesh'/Game/MyALS_CPP/CharacterAssets/Mesh/StarveMan.StarveMan'"));
-	if (SkeleMesh.Succeeded()) {
-		this->GetMesh()->SetSkeletalMesh(SkeleMesh.Object);
+	HeldObjectRoot = CreateDefaultSubobject<USceneComponent>(FName("HeldObjectRoot"));
+	HeldObjectRoot->SetupAttachment(GetMesh());
+
+	VisualMeshes = CreateDefaultSubobject<USceneComponent>(FName("VisualMeshes"));
+	VisualMeshes->SetupAttachment(GetMesh());
+
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(FName("StaticMesh"));
+	StaticMesh->SetupAttachment(HeldObjectRoot);
+
+	SkeletalMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("SkeletalMesh"));
+	SkeletalMesh->SetupAttachment(HeldObjectRoot);
+
+	BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("BodyMesh"));
+	BodyMesh->SetupAttachment(VisualMeshes);
+	
+	static ConstructorHelpers::FClassFinder<UAnimInstance> bodyanimfinder(TEXT("AnimBlueprint'/Game/AdvancedLocomotionV4/Props/Meshes/Bow_AnimBP.Bow_AnimBP_C'"));
+	if (bodyanimfinder.Succeeded()) {
+		SkeletalMesh->SetAnimInstanceClass(bodyanimfinder.Class);
+		BodyMesh->SetAnimInstanceClass(bodyanimfinder.Class);
+	}
+
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkeleMeshFinder(TEXT("SkeletalMesh'/Game/MyALS_CPP/CharacterAssets/Mesh/StarveMan.StarveMan'"));
+	if (SkeleMeshFinder.Succeeded()) {
+		this->GetMesh()->SetSkeletalMesh(SkeleMeshFinder.Object);
 	}
 
 	static ConstructorHelpers::FClassFinder<UAnimInstance> CharAniInsFinder(TEXT("AnimBlueprint'/Game/MyALS_CPP/CharacterAssets/StarveCharacter_ABP.StarveCharacter_ABP_C'"));
@@ -48,6 +69,12 @@ AStarveCharacter::AStarveCharacter() {
 	}
 }
 
+void AStarveCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	UpdateHeldObjectAnimations();
+}
+
 #pragma region CameraInterfaceDefinition
 
 FVector AStarveCharacter::Get_FP_CameraTarget()
@@ -83,51 +110,41 @@ FMantle_Asset AStarveCharacter::GetMantleAsset(EMantleType mantleType)
 		return Mantle_2m_Default;
 	}
 	else if(mantleType==EMantleType::LowMantle) {
-		return Mantle_1m_Default;
-
-		/*switch (OverlayState)
+		switch (OverlayState)
 		{
 			case EStarve_OverlayState::Default:
 			case EStarve_OverlayState::Masculine:
 			case EStarve_OverlayState::Feminine: {
-				return 
+				return Mantle_1m_Default;
 			}
 			case EStarve_OverlayState::Injured: {
-				return 
+				return Mantle_1m_LH;
 			}
 
 			case EStarve_OverlayState::HandsTied: {
-				return 
+				return Mantle_1m_2H;
 			}
 			case EStarve_OverlayState::Rifle:
 			case EStarve_OverlayState::Pistol_1H:
 			case EStarve_OverlayState::Postol_2H: {
-				return 
+				return Mantle_1m_RH;
 			}
 			case EStarve_OverlayState::Bow: {
-
-				break;
+				return Mantle_1m_LH;
 			}
 			case EStarve_OverlayState::Touch: {
-
-				break;
+				return Mantle_1m_LH;
 			}
 			case EStarve_OverlayState::Binoculars: {
-
-				break;
+				return Mantle_1m_RH;
 			}
 			case EStarve_OverlayState::Box: {
-
-				break;
+				return Mantle_1m_Box;
 			}
 			case EStarve_OverlayState::Barrel: {
-
-				break;
+				return Mantle_1m_LH;
 			}
-			default:
-				break;
-		}*/
-
+		}
 	}
 
 	return Mantle_2m_Default;
@@ -138,12 +155,19 @@ FMantle_Asset AStarveCharacter::GetMantleAsset(EMantleType mantleType)
 void AStarveCharacter::MantleStart(float MantleHeight,const FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType RefMantleType)
 {
 	Super::MantleStart(MantleHeight, MantleLedgeWS, RefMantleType);
-
+	switch (MantleType)
+	{
+		case EMantleType::HighMantle:
+		case EMantleType::FallingCatch:
+			ClearHeldObject();
+			break;
+	}
 }
 
 void AStarveCharacter::MantleEnd()
 {
 	Super::MantleEnd();
+	UpdateHeldObject();
 }
 
 UAnimMontage* AStarveCharacter::GetRollAnimation()
@@ -155,6 +179,99 @@ UAnimMontage* AStarveCharacter::GetRollAnimation()
 		}
 	}
 	return LandRollDefault;
+}
+
+void AStarveCharacter::UpdateHeldObject()
+{
+	switch (OverlayState)
+	{
+		case EStarve_OverlayState::Default:
+		case EStarve_OverlayState::Masculine:
+		case EStarve_OverlayState::Feminine:
+		case EStarve_OverlayState::Injured:
+		case EStarve_OverlayState::HandsTied: {
+			ClearHeldObject();
+			break;
+		}
+		case EStarve_OverlayState::Rifle: {
+			USkeletalMesh* skeletalmesh = LoadObject<USkeletalMesh>(this, TEXT("SkeletalMesh'/Game/AdvancedLocomotionV4/Props/Meshes/M4A1.M4A1'"));
+			AttachToHand(nullptr,skeletalmesh,nullptr);
+			break;
+		}
+		case EStarve_OverlayState::Pistol_1H: {
+			USkeletalMesh* skeletalmesh = LoadObject<USkeletalMesh>(this, TEXT("SkeletalMesh'/Game/AdvancedLocomotionV4/Props/Meshes/M9.M9'"));
+			AttachToHand(nullptr, skeletalmesh, nullptr);
+			break;
+		}
+		case EStarve_OverlayState::Postol_2H: {
+			USkeletalMesh* skeletalmesh = LoadObject<USkeletalMesh>(this, TEXT("SkeletalMesh'/Game/AdvancedLocomotionV4/Props/Meshes/M9.M9'"));
+			AttachToHand(nullptr, skeletalmesh, nullptr);
+			break;
+		}
+		case EStarve_OverlayState::Bow: {
+			USkeletalMesh* skeletalmesh = LoadObject<USkeletalMesh>(this, TEXT("SkeletalMesh'/Game/AdvancedLocomotionV4/Props/Meshes/Bow.Bow'"));
+			UObject* animinstance = LoadObject<UObject>(this, TEXT("AnimBlueprint'/Game/AdvancedLocomotionV4/Props/Meshes/Bow_AnimBP.Bow_AnimBP_C'"));
+			AttachToHand(nullptr, skeletalmesh, animinstance,true);
+			break;
+		}
+		case EStarve_OverlayState::Touch:{
+			UStaticMesh* staticmesh = LoadObject<UStaticMesh>(this, TEXT("StaticMesh'/Game/AdvancedLocomotionV4/Props/Meshes/Torch.Torch'"));
+			AttachToHand(staticmesh, nullptr, nullptr,true);
+			break;
+		}
+		case EStarve_OverlayState::Binoculars: {
+			UStaticMesh* staticmesh = LoadObject<UStaticMesh>(this, TEXT("StaticMesh'/Game/AdvancedLocomotionV4/Props/Meshes/Binoculars.Binoculars'"));
+			AttachToHand(staticmesh, nullptr, nullptr);
+			break;
+		}
+		case EStarve_OverlayState::Box: {
+			UStaticMesh* staticmesh = LoadObject<UStaticMesh>(this, TEXT("StaticMesh'/Game/AdvancedLocomotionV4/Props/Meshes/Box.Box'"));
+			AttachToHand(staticmesh, nullptr, nullptr);
+			break;
+		}
+		case EStarve_OverlayState::Barrel: {
+			UStaticMesh* staticmesh = LoadObject<UStaticMesh>(this, TEXT("StaticMesh'/Game/AdvancedLocomotionV4/Props/Meshes/Barrel.Barrel'"));
+			AttachToHand(staticmesh, nullptr, nullptr, true);
+			break;
+		}
+	}
+}
+
+void AStarveCharacter::ClearHeldObject()
+{
+	StaticMesh->SetStaticMesh(nullptr);
+	SkeletalMesh->SetSkeletalMesh(nullptr);
+	SkeletalMesh->SetAnimInstanceClass(nullptr);
+}
+
+void AStarveCharacter::AttachToHand(UStaticMesh* NewStaticMesh, USkeletalMesh* NewSkeletalMesh, UObject* NewAnimClass, bool bLeftHand, FVector Offset)
+{
+	/*1.先清除手中的物品*/
+	ClearHeldObject();
+
+	/*2.设置静态网格体*/
+	if (IsValid(NewStaticMesh)) {
+		StaticMesh->SetStaticMesh(NewStaticMesh);
+	}
+
+	/*设置骨骼网格体以及对应的动画*/
+	if (IsValid(NewSkeletalMesh)) {
+		SkeletalMesh->SetSkeletalMesh(NewSkeletalMesh);
+		if (IsValid(NewAnimClass)) {
+			SkeletalMesh->SetAnimInstanceClass(NewAnimClass->GetClass());
+		}
+	}
+
+	/*添加物品组件*/
+	FName socketname = bLeftHand ? FName("VB LHS_ik_hand_gun") : FName("VB RHS_ik_hand_gun");
+	HeldObjectRoot->K2_AttachToComponent(GetMesh(), socketname, EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, true);
+	HeldObjectRoot->SetRelativeLocation(Offset);
+}
+
+void AStarveCharacter::OnOverlayStateChanged(EStarve_OverlayState NewOverlayState)
+{
+	Super::OnOverlayStateChanged(NewOverlayState);
+	UpdateHeldObject();
 }
 
 #pragma endregion

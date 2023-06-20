@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+
+#include "Enums/Starve_LocomotionEnum.h"
+
 #include "CameraAnimInstance.generated.h"
 
 /**
@@ -29,6 +32,32 @@ private:
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	APawn* ControlledPawn;
 
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_Gait Gait;
+
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_MovementState MovementState;
+
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_RotationMode RotationMode;
+
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_MovementAction MovementAction;
+
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_ViewMode ViewMode;
+
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_Stance Stance;
+
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool bRightShould;
+	
+	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	bool bDebugView;
+
+
+	void UpdateCharacterInfo();
 public:
 	FORCEINLINE APlayerController* GetPlayerController() const { return this->PlayerController; }
 	FORCEINLINE APawn* GetControlledPawn() const { return this->ControlledPawn; }

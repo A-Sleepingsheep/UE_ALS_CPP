@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Starve_PlayerCameraManager.generated.h"
 
 class USkeletalMeshComponent;
@@ -30,19 +31,19 @@ private:
 	FRotator TargetCameraRotation;
 
 	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator DebugViewRotation;/*DebugÄ£Ê½¹Ì¶¨ÊÓ½ÇµÄĞı×ª*/
+	FRotator DebugViewRotation;/*Debugæ¨¡å¼å›ºå®šè§†è§’çš„æ—‹è½¬*/
 
 	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector DebugViewOffset;/*DebugÄ£Ê½¹Ì¶¨ÊÓ½ÇµÄOffset*/
+	FVector DebugViewOffset;/*Debugæ¨¡å¼å›ºå®šè§†è§’çš„Offset*/
 
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FTransform SmoothedTargetPivot;/*Æ½»ºÄ¿±êÖáµã*/
+	FTransform SmoothedTargetPivot;/*å¹³ç¼“ç›®æ ‡è½´ç‚¹*/
 
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector PivotLocation;/*ÖáµãÎ»ÖÃ*/
+	FVector PivotLocation;/*è½´ç‚¹ä½ç½®*/
 
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector TargetCameraLocation;/*ÉãÏñ»úÄ¿±êÎ»ÖÃ*/
+	FVector TargetCameraLocation;/*æ‘„åƒæœºç›®æ ‡ä½ç½®*/
 
 
 public:
@@ -56,11 +57,11 @@ public:
 
 	void CustomCameraBehavior(float DeltaTime, FMinimalViewInfo& OutResult);
 
+	EDrawDebugTrace::Type GetDebugTraceType(EDrawDebugTrace::Type DrawDebugTrace);
 
-	/*»ñµÃAnimInstanceµÄÇúÏßĞÅÏ¢*/
+	/*è·å¾—AnimInstanceçš„æ›²çº¿ä¿¡æ¯*/
 	float GetCameraBehaviorParam(FName CurveName);
 
-	/*·Ö±ğ¾«È·¼ÆËãÎ»ÖÃX,Y£¬ZµÄ²îÖµ¹ı¶ÉÖµ*/
+	/*åˆ†åˆ«ç²¾ç¡®è®¡ç®—ä½ç½®X,Yï¼ŒZçš„å·®å€¼è¿‡æ¸¡å€¼*/
 	FVector CalculateAxisIndependentLag(FVector CurrentLocation, FVector TargetLocation, FRotator CameraRotation, FVector LagSpeeds);
-
 };

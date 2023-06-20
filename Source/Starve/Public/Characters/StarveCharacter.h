@@ -17,6 +17,23 @@ class STARVE_API AStarveCharacter : public AStarveCharacterBase
 public:
 	AStarveCharacter();
 
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	USceneComponent* HeldObjectRoot;
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	UStaticMeshComponent* StaticMesh;
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	USceneComponent* VisualMeshes;
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	USkeletalMeshComponent* SkeletalMesh;
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	USkeletalMeshComponent* BodyMesh;
+
+	virtual void Tick(float DeltaTime) override;
+
 	/*Mantle_Assets*/
 	UPROPERTY(Category = MantleSystem, EditAnywhere, BlueprintReadWrite)
 		FMantle_Asset Mantle_2m_Default = FMantle_Asset(FVector(0.f,65.f,200.f),125.f,1.2f,0.6f,200.f,1.2f,0.f);
@@ -42,8 +59,6 @@ public:
 		UAnimMontage* LandRollDefault;
 
 
-#pragma region CameraSystemInterface
-
 	virtual FVector Get_FP_CameraTarget() override;
 
 	/*获得第三人称下人物的基础锚点位置*/
@@ -60,5 +75,19 @@ public:
 	virtual void MantleEnd() override;
 
 	virtual UAnimMontage* GetRollAnimation() override;
-#pragma endregion
+
+	/*更新手持物品*/
+	void UpdateHeldObject();
+
+	/*清空手持物品*/
+	void ClearHeldObject();
+
+	/*附加到手上*/
+	void AttachToHand(UStaticMesh* NewStaticMesh,USkeletalMesh* NewSkeletalMesh,UObject* NewAnimClass,bool bLeftHand = false,FVector Offset = FVector(0,0,0));
+
+	/*专门处理弓箭的*/
+	UFUNCTION(BlueprintImplementableEvent)
+	void UpdateHeldObjectAnimations();
+
+	virtual void OnOverlayStateChanged(EStarve_OverlayState NewOverlayState) override;
 };

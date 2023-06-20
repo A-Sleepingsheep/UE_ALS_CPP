@@ -4,16 +4,16 @@
 #include "CameraSystem/Starve_PlayerCameraManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 
 #include "Animation/CameraAnimInstance.h"
 #include "Interfaces/CameraInterface.h"
+#include "Gameplay/StarvePC.h"
 
 
 AStarve_PlayerCameraManager::AStarve_PlayerCameraManager() {
 
-	//´´½¨ÉãÏñ»ú¹ÜÀí¶ÔÏóµÄMesh
+	//åˆ›å»ºæ‘„åƒæœºç®¡ç†å¯¹è±¡çš„Mesh
 	CameraBehavior = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CameraBehavior"));
 	CameraBehavior->SetupAttachment(RootComponent);
 
@@ -72,8 +72,8 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 	
 	ICameraInterface* CameraInterface = Cast<ICameraInterface>(ControlledPawn);
 	if (CameraInterface != nullptr) {
-		/*µÚÒ»²½*/
-		//»ñµÃÍ¨¹ıCameraInterface»ñµÃĞÅÏ¢
+		/*ç¬¬ä¸€æ­¥*/
+		//è·å¾—é€šè¿‡CameraInterfaceè·å¾—ä¿¡æ¯
 		FTransform Pivot_Target;
 		FVector FP_Target;
 		float FP_FOV, TP_FOV = 0.f;
@@ -82,8 +82,8 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 		CameraInterface->Get_CameraParameters(TP_FOV, FP_FOV);
 
 
-		/*µÚ¶ş²½*/
-		//½«ÉãÏñ»úµÄRotation¸úPlayerControllerµÄRotation½øĞĞÍ¬²½£¬ÀûÓÃ²îÖµÓªÔì³öÑÓ³ÙµÄ¸Ğ¾õ
+		/*ç¬¬äºŒæ­¥*/
+		//å°†æ‘„åƒæœºçš„Rotationè·ŸPlayerControllerçš„Rotationè¿›è¡ŒåŒæ­¥ï¼Œåˆ©ç”¨å·®å€¼è¥é€ å‡ºå»¶è¿Ÿçš„æ„Ÿè§‰
 		FRotator PCRotation = GetOwningPlayerController()->GetControlRotation();
 		FRotator CameraRotation = GetCameraRotation();
 		float Alpha = GetCameraBehaviorParam(FName("RotationLagSpeed"));
@@ -91,8 +91,8 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 		//Debug
 		TargetCameraRotation = UKismetMathLibrary::RLerp(InterpRotation, DebugViewRotation, GetCameraBehaviorParam(FName("Override_Debug")), true);
 
-		/*µÚÈı²½*/
-		//»ñµÃ´ÓÉãÏñ»úÊÓ½Çµ½ÈËÎïÖáµã×ø±ê(Pivot_Target)µÄÃ¿Ö¡¹ı¶ÉÖµ
+		/*ç¬¬ä¸‰æ­¥*/
+		//è·å¾—ä»æ‘„åƒæœºè§†è§’åˆ°äººç‰©è½´ç‚¹åæ ‡(Pivot_Target)çš„æ¯å¸§è¿‡æ¸¡å€¼
 		FVector LagVector;
 		LagVector.X = GetCameraBehaviorParam(FName("PivotLagSpeed_X"));
 		LagVector.Y = GetCameraBehaviorParam(FName("PivotLagSpeed_Y"));
@@ -100,16 +100,16 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 		FVector CalculVector = CalculateAxisIndependentLag(SmoothedTargetPivot.GetLocation(), Pivot_Target.GetLocation(), TargetCameraRotation, LagVector);
 		SmoothedTargetPivot = FTransform(Pivot_Target.GetRotation(), CalculVector);
 
-		/*µÚËÄ²½*/
-		//»ñµÃÈËÎïĞı×ªÔöÁ¿²¢¼Ó¸øSmoothSmoothedTargetPivotµÄLocation
+		/*ç¬¬å››æ­¥*/
+		//è·å¾—äººç‰©æ—‹è½¬å¢é‡å¹¶åŠ ç»™SmoothSmoothedTargetPivotçš„Location
 		FVector PivotAddLocationX = SmoothedTargetPivot.GetRotation().GetForwardVector() * GetCameraBehaviorParam(FName("PivotOffset_X"));
 		FVector PivotAddLocationY = SmoothedTargetPivot.GetRotation().GetRightVector() * GetCameraBehaviorParam(FName("PivotOffset_Y"));
 		FVector PivotAddLocationZ = SmoothedTargetPivot.GetRotation().GetUpVector() * GetCameraBehaviorParam(FName("PivotOffset_Z"));
 
 		PivotLocation = PivotAddLocationX + PivotAddLocationY + PivotAddLocationZ + SmoothedTargetPivot.GetLocation();
 
-		/*µÚÎå²½*/
-		//¸ù¾İÉÏÒ»²½»ñµÃµÄÎ»ÖÃ£¬ºÍÆÚÍûµÄÉãÏñ»úµÄÎ»ÒÆÔöÁ¿»ñµÃÆÚÍûµÄÉãÏñ»úÎ»ÖÃ
+		/*ç¬¬äº”æ­¥*/
+		//æ ¹æ®ä¸Šä¸€æ­¥è·å¾—çš„ä½ç½®ï¼Œå’ŒæœŸæœ›çš„æ‘„åƒæœºçš„ä½ç§»å¢é‡è·å¾—æœŸæœ›çš„æ‘„åƒæœºä½ç½®
 		FVector CameraAddLocationX = TargetCameraRotation.Vector() * GetCameraBehaviorParam(FName("CameraOffset_X"));
 		FVector CameraAddLocationY = FRotationMatrix(TargetCameraRotation).GetScaledAxis(EAxis::Y) * GetCameraBehaviorParam(FName("CameraOffset_Y"));
 		FVector CameraAddLocationZ = FRotationMatrix(TargetCameraRotation).GetScaledAxis(EAxis::Z) * GetCameraBehaviorParam(FName("CameraOffset_Z"));
@@ -121,19 +121,20 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 
 		TargetCameraLocation = UKismetMathLibrary::VLerp(CameraAfterLocation, DebugLocation, DebugAlpha);
 
-		/*µÚÁù²½*/
-		//½øĞĞÇòÌå¼ì²â,¼ì²âÉãÏñ»úÂ·¾¶ÊÇ·ñÓĞÕÚµ²
+		/*ç¬¬å…­æ­¥*/
+		//è¿›è¡Œçƒä½“æ£€æµ‹,æ£€æµ‹æ‘„åƒæœºè·¯å¾„æ˜¯å¦æœ‰é®æŒ¡
 		FVector TraceOrigin;
 		ETraceTypeQuery TraceChannel;
 		float Radius = CameraInterface->Get_TP_TraceParams(TraceOrigin, TraceChannel);
+		EDrawDebugTrace::Type drawdebugtrace = GetDebugTraceType(EDrawDebugTrace::ForOneFrame);
 		FHitResult OutHit;
 		if (UKismetSystemLibrary::SphereTraceSingle(this, TraceOrigin, TargetCameraLocation, 
 													Radius, TraceChannel,
 													false, {},
-													EDrawDebugTrace::ForOneFrame, OutHit, true,
+													drawdebugtrace, OutHit, true,
 													FLinearColor::Yellow,FLinearColor::Black,5.0f)) 
 		{
-			//Åö×²µã - ½áÊøµã ´ú±í×ÅÉãÏñ»úÍùÇ°Å²¶àÉÙ£¬ÊÇ¸ö¸ºÊı£¬TraceEndÒ»°ãÀ´Ëµ¾ÍÊÇÌîÈëµÄ End
+			//ç¢°æ’ç‚¹ - ç»“æŸç‚¹ ä»£è¡¨ç€æ‘„åƒæœºå¾€å‰æŒªå¤šå°‘ï¼Œæ˜¯ä¸ªè´Ÿæ•°ï¼ŒTraceEndä¸€èˆ¬æ¥è¯´å°±æ˜¯å¡«å…¥çš„ End
 			if (OutHit.bBlockingHit && !OutHit.bStartPenetrating) {
 				FVector SubVector = OutHit.Location - OutHit.TraceEnd;	
 				TargetCameraLocation += SubVector;
@@ -142,23 +143,24 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 
 		//UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_Visibility),
 
-		/*µÚÆß²½*/
-		//»æÖÆDebugÇòÌå
-		//UKismetSystemLibrary::PrintString(this, "DrawDebug", true, false, FLinearColor::Blue, 0.f);
-		//´ÓÈËÎï´¦»ñµÃµÄPivot_Target
-		UKismetSystemLibrary::DrawDebugSphere(this, Pivot_Target.GetLocation(), 16.f, 8,FLinearColor::Green,0.f,0.5f);
-		//Æ½»¬¹ı¶ÉÊ±µÄSmoothedTargetPivot
-		UKismetSystemLibrary::DrawDebugSphere(this, SmoothedTargetPivot.GetLocation(), 16.f, 8, FLinearColor(1.f,0.166667f,0.f,1.f),0.f, 0.5f);
-		//Æ½»¬¹ı¶ÈÊ±×îÖÕµÄPivotLocationÎ»ÖÃ
-		UKismetSystemLibrary::DrawDebugSphere(this, PivotLocation, 16.f, 8, FLinearColor::Blue, 0.f, 0.5f);
-		//»æÖÆSmoothedTargetPivotµ½Pivot_TargetÖ®¼äµÄÏßÌõ
-		UKismetSystemLibrary::DrawDebugLine(this, SmoothedTargetPivot.GetLocation(), Pivot_Target.GetLocation(), FLinearColor(1, 0.166667, 0, 1), 0.f, 1.f);
-		//»æÖÆ
-		UKismetSystemLibrary::DrawDebugLine(this, PivotLocation, SmoothedTargetPivot.GetLocation(), FLinearColor::Blue, 0.f, 1.f);
+		/*ç¬¬ä¸ƒæ­¥*/
+		//ç»˜åˆ¶Debugçƒä½“
+		if (Cast<AStarvePC>(GetOwningPlayerController())->ShowDebugShapes) {
+			//ä»äººç‰©å¤„è·å¾—çš„Pivot_Target
+			UKismetSystemLibrary::DrawDebugSphere(this, Pivot_Target.GetLocation(), 16.f, 8, FLinearColor::Green, 0.f, 0.5f);
+			//å¹³æ»‘è¿‡æ¸¡æ—¶çš„SmoothedTargetPivot
+			UKismetSystemLibrary::DrawDebugSphere(this, SmoothedTargetPivot.GetLocation(), 16.f, 8, FLinearColor(1.f, 0.166667f, 0.f, 1.f), 0.f, 0.5f);
+			//å¹³æ»‘è¿‡åº¦æ—¶æœ€ç»ˆçš„PivotLocationä½ç½®
+			UKismetSystemLibrary::DrawDebugSphere(this, PivotLocation, 16.f, 8, FLinearColor::Blue, 0.f, 0.5f);
+			//ç»˜åˆ¶SmoothedTargetPivotåˆ°Pivot_Targetä¹‹é—´çš„çº¿æ¡
+			UKismetSystemLibrary::DrawDebugLine(this, SmoothedTargetPivot.GetLocation(), Pivot_Target.GetLocation(), FLinearColor(1, 0.166667, 0, 1), 0.f, 1.f);
+			//ç»˜åˆ¶
+			UKismetSystemLibrary::DrawDebugLine(this, PivotLocation, SmoothedTargetPivot.GetLocation(), FLinearColor::Blue, 0.f, 1.f);
+		}
 
-		/*µÚ°Ë²½*/
-		//Êä³ö·µ»ØÖµ
-		//»ñµÃµÚÈıÈË³ÆÓëµÚÒ»ÈË³ÆµÄ±ä»¯
+		/*ç¬¬å…«æ­¥*/
+		//è¾“å‡ºè¿”å›å€¼
+		//è·å¾—ç¬¬ä¸‰äººç§°ä¸ç¬¬ä¸€äººç§°çš„å˜åŒ–
 		FTransform TP_CameraTransform(TargetCameraRotation, TargetCameraLocation);
 		FTransform FP_CameraTransform(TargetCameraRotation, FP_Target);
 		FTransform T_F_Transform = UKismetMathLibrary::TLerp(TP_CameraTransform, FP_CameraTransform, GetCameraBehaviorParam(FName("Weight_FirstPerson")));
@@ -178,6 +180,16 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 }
 
 
+EDrawDebugTrace::Type AStarve_PlayerCameraManager::GetDebugTraceType(EDrawDebugTrace::Type DrawDebugTrace)
+{
+	if (Cast<AStarvePC>(GetOwningPlayerController())->ShowTraces) {
+		return DrawDebugTrace;
+	}
+	else {
+		return EDrawDebugTrace::None;
+	}
+}
+
 float AStarve_PlayerCameraManager::GetCameraBehaviorParam(FName CurveName)
 {
 	UAnimInstance* AnimInstance = CameraBehavior->GetAnimInstance();
@@ -191,7 +203,7 @@ FVector AStarve_PlayerCameraManager::CalculateAxisIndependentLag(FVector Current
 {
 	FRotator CameraRotationYaw = FRotator(0, CameraRotation.Yaw, 0);
 
-	//½«ÊÀ½ç¿Õ¼ä×ª»»³É±¾µØ¿Õ¼ä,·µ»ØµÄÒÀÈ»ÊÇÔÚÊÀ½ç×ø±êÏµÏÂµÄ±íÊ¾
+	//å°†ä¸–ç•Œç©ºé—´è½¬æ¢æˆæœ¬åœ°ç©ºé—´,è¿”å›çš„ä¾ç„¶æ˜¯åœ¨ä¸–ç•Œåæ ‡ç³»ä¸‹çš„è¡¨ç¤º
 	FVector LocalCurrentLocation = UKismetMathLibrary::LessLess_VectorRotator(CurrentLocation, CameraRotationYaw);
 	FVector LocalTargetLocation = UKismetMathLibrary::LessLess_VectorRotator(TargetLocation, CameraRotationYaw);
 
@@ -204,3 +216,4 @@ FVector AStarve_PlayerCameraManager::CalculateAxisIndependentLag(FVector Current
 	FVector ReturnVector = UKismetMathLibrary::GreaterGreater_VectorRotator(LocalReturnVector, CameraRotationYaw);
 	return ReturnVector;
 }
+

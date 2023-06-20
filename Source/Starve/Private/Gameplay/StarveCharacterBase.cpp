@@ -124,6 +124,9 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 			MantleCheck(FallingTraceSettings, EDrawDebugTrace::ForOneFrame);
 		}
 	}
+	else if (MovementState == EStarve_MovementState::Ragdoll) {
+		RagdollUpdate();
+	}
 
 	/*第二步，保存当前的某些信息*/
 	CacheValus();
@@ -156,6 +159,16 @@ void AStarveCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 	//站立蹲伏切换
 	PlayerInputComponent->BindAction("StanceAction", IE_Pressed, this, &AStarveCharacterBase::StanceAction);
+
+	//瞄准
+	PlayerInputComponent->BindAction("AimAction", IE_Pressed, this, &AStarveCharacterBase::AimPressedAction);
+	PlayerInputComponent->BindAction("AimAction", IE_Released, this, &AStarveCharacterBase::AimReleasedAction);
+
+	//一三人称视角切换事件
+	PlayerInputComponent->BindAction("CameraAction", IE_Pressed, this, &AStarveCharacterBase::CameraPressedAction);
+
+	/*布娃娃开启*/
+	PlayerInputComponent->BindAction("RagdollAction", IE_Pressed, this, &AStarveCharacterBase::RagdollPressedAction);
 }
 
 void AStarveCharacterBase::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
@@ -803,9 +816,10 @@ void AStarveCharacterBase::UpdateGroundedRotation()
 			//需要进行每帧更新旋转
 			switch (RotationMode)
 			{
-				case EStarve_RotationMode::VelocityDirection:
-
+				case EStarve_RotationMode::VelocityDirection: {
+					SmoothCharacterRotation(FRotator(0.f, LastVelocityRotation.Yaw, 0.f), 800.f, CalculateGroundedRotationRate());
 					break;
+				}
 				case EStarve_RotationMode::LookingDirection: {
 					float rotationrate = CalculateGroundedRotationRate();
 					//冲刺状态下的yaw跟走路奔跑有所不同
@@ -813,9 +827,11 @@ void AStarveCharacterBase::UpdateGroundedRotation()
 					SmoothCharacterRotation(FRotator(0, ratationyaw, 0), 500.f, rotationrate);
 					break;
 				}
-				case EStarve_RotationMode::Aiming:
+				case EStarve_RotationMode::Aiming: {
+					SmoothCharacterRotation(FRotator(0.f, GetControlRotation().Yaw, 0.f), 1000.f, 20.f);
 					break;
 				}
+			}
 		}
 		else {
 			//不需要进行每帧进行旋转更新
@@ -833,7 +849,9 @@ void AStarveCharacterBase::UpdateGroundedRotation()
 		}
 	}
 	else if (MovementAction == EStarve_MovementAction::Rolling) {
-
+		if (bHasMovementInput) {
+			SmoothCharacterRotation(FRotator(0.f, LastMovementInputRotation.Yaw, 0.f), 0.f, 2.f);
+		}
 	}
 }
 
@@ -1306,5 +1324,141 @@ void AStarveCharacterBase::MultiTapInputDelay()
 
 void AStarveCharacterBase::RagdollStart()
 {
+	/*1.设置运动模式*/
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
+	I_SetMovementState(EStarve_MovementState::Ragdoll);
+
+	/*2.设置碰撞*/
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetCollisionObjectType(ECC_PhysicsBody);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetMesh()->SetAllBodiesBelowSimulatePhysics(FName("Pelvis"), true, true);
+
+	/*3.停止蒙太奇*/
+	MainAnimInstance->Montage_Stop(0.2f);
 }
+
+void AStarveCharacterBase::RagdollEnd()
+{
+	/*1.保存姿势快照*/
+	if (IsValid(MainAnimInstance)) {
+		MainAnimInstance->SavePoseSnapshot(FName("RagdollPose"));
+	}
+
+	/*2.播放起身蒙太奇动画，并赋予人物速度*/
+	if (bRagdollOnGround) {
+		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+		MainAnimInstance->Montage_Play(GetGetUpAnimation(bRagdollFaceUp));
+	}
+	else {
+		GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
+		GetCharacterMovement()->Velocity = LastRagdollVelocity;
+	}
+
+	/*3.重新启用碰撞*/
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetMesh()->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetMesh()->SetAllBodiesSimulatePhysics(false);
+}
+
+void AStarveCharacterBase::AimPressedAction()
+{
+	I_SetRotationMode(EStarve_RotationMode::Aiming);
+}
+
+void AStarveCharacterBase::AimReleasedAction()
+{
+	switch (ViewMode)
+	{
+		case EStarve_ViewMode::ThirdPerson:
+			I_SetRotationMode(DesiredRotationMode);
+			break;
+		case EStarve_ViewMode::FirstPerson:
+			I_SetRotationMode(EStarve_RotationMode::LookingDirection);
+			break;
+	}
+}
+
+void AStarveCharacterBase::CameraPressedAction()
+{
+	switch (ViewMode)
+	{
+		case EStarve_ViewMode::ThirdPerson:
+			I_SetViewMode(EStarve_ViewMode::FirstPerson);
+			break;
+		case EStarve_ViewMode::FirstPerson:
+			I_SetViewMode(EStarve_ViewMode::ThirdPerson);
+			break;
+	}
+}
+
+void AStarveCharacterBase::RagdollPressedAction()
+{
+	switch (MovementState)
+	{
+		case EStarve_MovementState::None:
+		case EStarve_MovementState::Grounded:
+		case EStarve_MovementState::InAir:
+		case EStarve_MovementState::Mantling:
+			RagdollStart();
+			break;
+		case EStarve_MovementState::Ragdoll:
+			RagdollEnd();
+			break;
+	}
+}
+
+UAnimMontage* AStarveCharacterBase::GetGetUpAnimation(bool RagdollFaceUp)
+{
+	return nullptr;
+}
+
+void AStarveCharacterBase::RagdollUpdate()
+{
+	/*1.LastRagdollVelocity赋值*/
+	LastRagdollVelocity = GetMesh()->GetPhysicsLinearVelocity(FName("root"));
+
+	/*2.缩放LastRagdollVelocity对物理动画的关节强度进行限制*/
+	float inspring = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 1000.f), FVector2D(0.f, 25000.f), LastRagdollVelocity.Size());
+	GetMesh()->SetAllMotorsAngularDriveParams(inspring, 0.f, 0.f, false);
+
+	/*3.是否启用重力*/
+	GetMesh()->SetEnableGravity(LastRagdollVelocity.Z > -4000.f);
+
+	/*4.更新角色位置*/
+	SetActorLocationDuringRagdoll();
+
+}
+
+void AStarveCharacterBase::SetActorLocationDuringRagdoll()
+{
+	/*1.获得目标位置*/
+	FVector TargetRagdollLocation = GetMesh()->GetSocketLocation(FName("Pelvis"));
+
+	/*2.获取人物面朝向*/
+	FRotator socketrotation = GetMesh()->GetSocketRotation(FName("Pelvis"));
+	bRagdollFaceUp = socketrotation.Roll < 0.f;
+	float rotationyaw = bRagdollFaceUp ? socketrotation.Yaw - 180.f : socketrotation.Yaw;
+	FRotator TargetRagdollRotation(0.f, rotationyaw, 0.f);
+
+	/*3.射线检测*/
+	FVector end(TargetRagdollLocation.X, TargetRagdollLocation.Y, TargetRagdollLocation.Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	FHitResult hitresult;
+	UKismetSystemLibrary::LineTraceSingle(this, TargetRagdollLocation, end, TraceTypeQuery1, false, {}, EDrawDebugTrace::None, hitresult, true);
+	bRagdollOnGround = hitresult.bBlockingHit;
+	if (bRagdollOnGround) {
+		float targetz = TargetRagdollLocation.Z + GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - FMath::Abs(hitresult.ImpactPoint.Z - hitresult.TraceStart.Z);
+		SetActorLocationAndRotationUpdateTarget(FVector(TargetRagdollLocation.X, TargetRagdollLocation.Y, targetz), TargetRagdollRotation, false, hitresult, false);
+	}
+	else {
+		SetActorLocationAndRotationUpdateTarget(TargetRagdollLocation,TargetRagdollRotation,false,hitresult,false);
+	}
+}
+
+//bool AStarveCharacterBase::HoldInput(float WaitTime)
+//{
+//	const FLatentActionInfo HoldInputInfo(0, FMath::Rand(), TEXT("MultiTapInputDelay"), this);
+//	UKismetSystemLibrary::RetriggerableDelay(this, WaitTime, HoldInputInfo);
+//}
 

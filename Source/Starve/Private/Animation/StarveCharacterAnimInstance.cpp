@@ -153,10 +153,10 @@ void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 					break;
 				}
 
-				//case EStarve_MovementState::Ragdoll:
-				//	break;
-				/*default:
-					break;*/
+				case EStarve_MovementState::Ragdoll: {
+					UpdateRagdollValues();
+					break;
+				}
 			}
 		}
 	}
@@ -352,7 +352,7 @@ float UStarveCharacterAnimInstance::CalculateStrideBlend()
 
 	float stride_blend_cw = StrideBlend_C_Walk->GetFloatValue(Speed);
 	//站立到crouch的混合
-	float alpha2 = GetCurveValue(FName("BasePose_CLF"));
+	float alpha2 = GetCurveValue(FName("Basepose_CLF"));
 	float s_t_c = UKismetMathLibrary::Lerp(w_t_r, stride_blend_cw, alpha2);
 
 	return s_t_c;
@@ -561,9 +561,23 @@ void UStarveCharacterAnimInstance::UpdateAimingValues()
 	SmoothedAimingAngle.X = delta_sr.Yaw;
 	SmoothedAimingAngle.Y = delta_sr.Pitch;
 
-	/*3、*/
+	/*3、Clamp the Aiming Pitch Angle to a range of 1 to 0 for use in the vertical aim sweeps.*/
+	if (RotationMode == EStarve_RotationMode::LookingDirection || RotationMode == EStarve_RotationMode::Aiming) {
+		AimSweepTime = FMath::GetMappedRangeValueClamped(FVector2D(-90.f, 90.f), FVector2D(1.f, 0.f), AimingAngle.Y);
+		SpineRotation = FRotator(0.f, AimingAngle.X / 4.f, 0.f);
+	}
+	else if(RotationMode == EStarve_RotationMode::VelocityDirection)
+	{
+		if (bHasMovementInput) {
+			float deltayaw = UKismetMathLibrary::NormalizedDeltaRotator(MovementInput.ToOrientationRotator(), CharacterRef->GetActorRotation()).Yaw;
+			float mapyaw = FMath::GetMappedRangeValueClamped(FVector2D(-180.f, 180.f), FVector2D(0.f, 1.f), deltayaw);
+			InputYawOffsetTime = FMath::FInterpTo(InputYawOffsetTime, mapyaw, DeltaTimeX, InputYawOffsetInterpSpeed);
+		}
+	}
 
-
+	LeftYawTime = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 180.f), FVector2D(0.5f, 0.f), FMath::Abs(SmoothedAimingAngle.X));
+	RightYawTime = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 180.f), FVector2D(0.5f, 1.f), FMath::Abs(SmoothedAimingAngle.X));
+	ForwardYawTime = FMath::GetMappedRangeValueClamped(FVector2D(-180.f, 180.f), FVector2D(0.f, 1.f), SmoothedAimingAngle.X);
 }
 
 void UStarveCharacterAnimInstance::TurnInPlace(const FRotator& TargetRotation, float PlayRateScale, float StartTime, bool bOverrideCurrent)
@@ -628,12 +642,12 @@ void UStarveCharacterAnimInstance::I_Jumped()
 
 void UStarveCharacterAnimInstance::I_SetGroundedEntryState(EGroundedEntryState GroundEntryState)
 {
-	//throw std::logic_error("The method or operation is not implemented.");
+	GroundedEntryState = GroundEntryState;
 }
 
-void UStarveCharacterAnimInstance::I_SetOverlayOverrideState(int OverlatOverrideState)
+void UStarveCharacterAnimInstance::I_SetOverlayOverrideState(int overlayOverrideState)
 {
-	//throw std::logic_error("The method or operation is not implemented.");
+	this->OverlayOverrideState = overlayOverrideState;
 }
 
 void UStarveCharacterAnimInstance::I_JumpedDelayFinish()
@@ -648,8 +662,8 @@ void UStarveCharacterAnimInstance::UpdateLayerValues()
 	Enable_AnimOffset = FMath::Lerp(1.f, 0.f, GetAnimCurveCompact(FName("Mask_AimOffset")));
 
 	/*2.*/
-	BasePose_N = GetAnimCurveCompact(FName("BasePose_N"));
-	BasePose_CLF = GetAnimCurveCompact(FName("BasePose_CLF"));
+	BasePose_N = GetAnimCurveCompact(FName("Basepose_N"));
+	BasePose_CLF = GetAnimCurveCompact(FName("Basepose_CLF"));
 
 	/*3.*/
 	Spine_Add =GetAnimCurveCompact(FName("Layering_Spine_Add"));
@@ -980,4 +994,76 @@ void UStarveCharacterAnimInstance::AnimNotify_RollToIdle(UAnimNotify* Notify)
 float UStarveCharacterAnimInstance::GetAnimCurveCompact(FName CurveName)
 {
 	return GetCurveValue(CurveName);
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_Reset_GroundedEntryState(UAnimNotify* Notify)
+{
+	GroundedEntryState = EGroundedEntryState::None;
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_BowRelaxedToReady(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(righttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_BowReadyToRelaxed(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(righttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_RifleRelaxedToReady(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(righttransitionanimtion, 0.2f, 0.2f, 1.75f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_RifleReadyToRelaxed(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(righttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_Pistol_1H_RelaxedToReady(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.75f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_Pistol_1H_ReadyToRelaxed(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_Pistol_2H_RelaxedToReady(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.75f, 0.3f));
+	}
+}
+
+void UStarveCharacterAnimInstance::AnimNotify_Pistol_2H_ReadyToRelaxed(UAnimNotify* Notify)
+{
+	if (CanOverlayTransition()) {
+		PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.3f));
+	}
+}
+
+bool UStarveCharacterAnimInstance::CanOverlayTransition()
+{
+	return Stance == EStarve_Stance::Standing && !bShouldMove;
+}
+
+void UStarveCharacterAnimInstance::UpdateRagdollValues()
+{
+	FVector Ragdollvelocity = GetOwningComponent()->GetPhysicsLinearVelocity(FName("root"));
+	FlailRate = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 1000.f), FVector2D(0.f, 1.f), Ragdollvelocity.Size());
 }

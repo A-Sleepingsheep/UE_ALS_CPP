@@ -175,7 +175,7 @@ private:
 
 	//从什么状态进入Grounded状态
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	EGroundedEntryState GroudedEntryState;
+	EGroundedEntryState GroundedEntryState;
 	
 	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float TriggerPivotLimitSpeed = 200.f;//Pivot,State中有Pivot动画通知的时候修改
@@ -424,6 +424,41 @@ private:
 	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_R_MS;
 
+	/*MeshSpace的右手臂*/
+	UPROPERTY(Category = LayerBlending, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	int OverlayOverrideState;
+
+	/*人物整体偏移的Alpha值*/
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AimSweepTime;
+	
+	/*瞄准模式下Spine旋转*/
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator SpineRotation;
+	
+	/*有输入时的yaw值偏移时间*/
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float InputYawOffsetTime;
+
+	/*有输入时的yaw值偏移差值速度*/
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float InputYawOffsetInterpSpeed;
+
+	
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float LeftYawTime;
+
+	
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RightYawTime;
+
+	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float ForwardYawTime;
+	
+	/*Ragdoll速率*/
+	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float FlailRate;
+
 	//MovementSystem
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/
@@ -499,7 +534,7 @@ private:
 
 	virtual void I_SetGroundedEntryState(EGroundedEntryState GroundEntryState) override;
 
-	virtual void I_SetOverlayOverrideState(int OverlatOverrideState) override;
+	virtual void I_SetOverlayOverrideState(int overlayOverrideState) override;
 
 	//延迟Delay结束后调用的函数
 	UFUNCTION()
@@ -596,4 +631,45 @@ private:
         void AnimNotify_RollToIdle(UAnimNotify* Notify);
 
 	float GetAnimCurveCompact(FName CurveName);
+
+	UFUNCTION(BlueprintCallable, Category = "Reset_GroundedEntryState")
+		void AnimNotify_Reset_GroundedEntryState(UAnimNotify* Notify);
+
+	/*Bow的过渡通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_BowRelaxedToReady(UAnimNotify* Notify);
+	
+	/*Bow的过渡通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_BowReadyToRelaxed(UAnimNotify* Notify);
+	
+	/*步枪的动画通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_RifleRelaxedToReady(UAnimNotify* Notify);
+
+	/*步枪的动画通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_RifleReadyToRelaxed(UAnimNotify* Notify);
+
+	/*单手手枪的动画通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_Pistol_1H_RelaxedToReady(UAnimNotify* Notify);
+	
+	/*单手手枪的动画通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_Pistol_1H_ReadyToRelaxed(UAnimNotify* Notify);
+	
+	/*双手手枪的动画通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_Pistol_2H_RelaxedToReady(UAnimNotify* Notify);
+	
+	/*双手手枪的动画通知*/
+	UFUNCTION(BlueprintCallable, Category = "Overlay")
+        void AnimNotify_Pistol_2H_ReadyToRelaxed(UAnimNotify* Notify);
+
+	/*叠加态能够过渡*/
+	bool CanOverlayTransition();
+
+	/*每帧更新Ragdoll相关信息*/
+	void UpdateRagdollValues();
 };
