@@ -27,27 +27,27 @@ class STARVE_API IStarve_CharacterInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	/*»ñµÃµ±Ç°½ÇÉ«µÄÔË¶¯×´Ì¬*/
+	/*è·å¾—å½“å‰è§’è‰²çš„è¿åŠ¨çŠ¶æ€*/
 	virtual FStarveCharacterState I_GetCurrentState() = 0;
 
-	/*»ñµÃ½ÇÉ«ÔË¶¯µÄÖ÷ÒªĞÅÏ¢*/
+	/*è·å¾—è§’è‰²è¿åŠ¨çš„ä¸»è¦ä¿¡æ¯*/
 	virtual FEssentialValues I_GetEssentialValues() = 0;
 
-	/*ÉèÖÃ½ÇÉ«ÔË¶¯×´Ì¬*/
+	/*è®¾ç½®è§’è‰²è¿åŠ¨çŠ¶æ€*/
 	virtual void I_SetMovementState(EStarve_MovementState NewMovementState) = 0;
 
-	/*ÉèÖÃ½ÇÉ«ÒÆ¶¯Ê±ÕıÔÚ¸ÉÊ²Ã´*/
+	/*è®¾ç½®è§’è‰²ç§»åŠ¨æ—¶æ­£åœ¨å¹²ä»€ä¹ˆ*/
 	virtual void I_SetMovementAction(EStarve_MovementAction NewMovementAction) = 0;
 
-	/*ÉèÖÃÉãÏñ»úĞı×ªÄ£Ê½*/
+	/*è®¾ç½®æ‘„åƒæœºæ—‹è½¬æ¨¡å¼*/
 	virtual void I_SetRotationMode(EStarve_RotationMode NewRotationMode) = 0;
 
-	/*ÉèÖÃÖ÷×´Ì¬*/
+	/*è®¾ç½®ä¸»çŠ¶æ€*/
 	virtual void I_SetGait(EStarve_Gait NewGait) = 0;
 
-	/*ÉèÖÃÊÓ½ÇÄ£Ê½*/
+	/*è®¾ç½®è§†è§’æ¨¡å¼*/
 	virtual void I_SetViewMode(EStarve_ViewMode NewViewMode) = 0;
 
-	/*ÉèÖÃµş¼Ó×´Ì¬*/
+	/*è®¾ç½®å åŠ çŠ¶æ€*/
 	virtual void I_SetOverlayState(EStarve_OverlayState NewOverlayState) = 0;
 };

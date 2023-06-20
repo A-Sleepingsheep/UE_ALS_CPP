@@ -490,25 +490,25 @@ private:
 
 	//AnimNotify，是在六向状态机 State 中的 CustomBlueprintEvent 通知
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
-        void AnimNotify_Hips_F(UAnimNotify* Notify);
+		void AnimNotify_Hips_F(UAnimNotify* Notify);
 
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
 		void AnimNotify_Hips_B(UAnimNotify* Notify);
 
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
-        void AnimNotify_Hips_LF(UAnimNotify* Notify);
+		void AnimNotify_Hips_LF(UAnimNotify* Notify);
 
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
-        void AnimNotify_Hips_LB(UAnimNotify* Notify);
-
-    UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
-        void AnimNotify_Hips_RF(UAnimNotify* Notify);
+		void AnimNotify_Hips_LB(UAnimNotify* Notify);
 
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
-        void AnimNotify_Hips_RB(UAnimNotify* Notify);
+		void AnimNotify_Hips_RF(UAnimNotify* Notify);
 
 	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
-        void AnimNotify_Pivot(UAnimNotify* Notify);
+		void AnimNotify_Hips_RB(UAnimNotify* Notify);
+
+	UFUNCTION(BlueprintCallable, Category = "HipsAnimNotify")
+		void AnimNotify_Pivot(UAnimNotify* Notify);
 
 	//延迟Delay结束后调用的函数
 	UFUNCTION()
@@ -595,15 +595,15 @@ private:
 
 	/*在State中触发的动画通知N_Stop_L*/
 	UFUNCTION(BlueprintCallable, Category = "Transition")
-        void AnimNotify_N_Stop_L(UAnimNotify* Notify);
+		void AnimNotify_N_Stop_L(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知N_Stop_R*/
 	UFUNCTION(BlueprintCallable, Category = "Transition")
-        void AnimNotify_N_Stop_R(UAnimNotify* Notify);
+		void AnimNotify_N_Stop_R(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知StopTransition*/
 	UFUNCTION(BlueprintCallable, Category = "Transition")
-        void AnimNotify_StopTransition(UAnimNotify* Notify);
+		void AnimNotify_StopTransition(UAnimNotify* Notify);
 
 	/*在空中时每帧更新数据*/
 	void UpdateInAirValues();
@@ -616,19 +616,19 @@ private:
 
 	/*在State中触发的动画通知LandToIdle*/
 	UFUNCTION(BlueprintCallable, Category = "LandToIdle")
-        void AnimNotify_LandToIdle(UAnimNotify* Notify);
+		void AnimNotify_LandToIdle(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知To_CLF_Stop*/
 	UFUNCTION(BlueprintCallable, Category = "Stop")
-        void AnimNotify_To_CLF_Stop(UAnimNotify* Notify);
+		void AnimNotify_To_CLF_Stop(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知To_N_QuickStop*/
 	UFUNCTION(BlueprintCallable, Category = "Stop")
-        void AnimNotify_To_N_QuickStop(UAnimNotify* Notify);
+		void AnimNotify_To_N_QuickStop(UAnimNotify* Notify);
 
 	/*在State中触发的动画通知RollToIdle*/
 	UFUNCTION(BlueprintCallable, Category = "Stop")
-        void AnimNotify_RollToIdle(UAnimNotify* Notify);
+		void AnimNotify_RollToIdle(UAnimNotify* Notify);
 
 	float GetAnimCurveCompact(FName CurveName);
 
@@ -637,35 +637,35 @@ private:
 
 	/*Bow的过渡通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_BowRelaxedToReady(UAnimNotify* Notify);
+		void AnimNotify_BowRelaxedToReady(UAnimNotify* Notify);
 	
 	/*Bow的过渡通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_BowReadyToRelaxed(UAnimNotify* Notify);
+		void AnimNotify_BowReadyToRelaxed(UAnimNotify* Notify);
 	
 	/*步枪的动画通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_RifleRelaxedToReady(UAnimNotify* Notify);
+		void AnimNotify_RifleRelaxedToReady(UAnimNotify* Notify);
 
 	/*步枪的动画通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_RifleReadyToRelaxed(UAnimNotify* Notify);
+		void AnimNotify_RifleReadyToRelaxed(UAnimNotify* Notify);
 
 	/*单手手枪的动画通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_Pistol_1H_RelaxedToReady(UAnimNotify* Notify);
+		void AnimNotify_Pistol_1H_RelaxedToReady(UAnimNotify* Notify);
 	
 	/*单手手枪的动画通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_Pistol_1H_ReadyToRelaxed(UAnimNotify* Notify);
+		void AnimNotify_Pistol_1H_ReadyToRelaxed(UAnimNotify* Notify);
 	
 	/*双手手枪的动画通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_Pistol_2H_RelaxedToReady(UAnimNotify* Notify);
+		void AnimNotify_Pistol_2H_RelaxedToReady(UAnimNotify* Notify);
 	
 	/*双手手枪的动画通知*/
 	UFUNCTION(BlueprintCallable, Category = "Overlay")
-        void AnimNotify_Pistol_2H_ReadyToRelaxed(UAnimNotify* Notify);
+		void AnimNotify_Pistol_2H_ReadyToRelaxed(UAnimNotify* Notify);
 
 	/*叠加态能够过渡*/
 	bool CanOverlayTransition();

@@ -14,8 +14,8 @@ class UCameraInterface : public UInterface
 };
 
 /**
- * ¸úÉãÏñ»úÏà¹ØµÄ½Ó¿Ú
- * ÔÚÈËÎïÖĞÊµÏÖ
+ * è·Ÿæ‘„åƒæœºç›¸å…³çš„æ¥å£
+ * åœ¨äººç‰©ä¸­å®ç°
  */
 class STARVE_API ICameraInterface
 {
@@ -24,17 +24,17 @@ class STARVE_API ICameraInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	/*
-	* »ñµÃÉãÏñ»úµÄ²ÎÊı
-	* @param TP_FOV µÚÈıÈË³ÆÉãÏñ»úµÄFOV
-	* @param FP_FOV µÚÒ»ÈË³ÆÉãÏñ»úµÄFOV
+	* è·å¾—æ‘„åƒæœºçš„å‚æ•°
+	* @param TP_FOV ç¬¬ä¸‰äººç§°æ‘„åƒæœºçš„FOV
+	* @param FP_FOV ç¬¬ä¸€äººç§°æ‘„åƒæœºçš„FOV
 	* @return 
 	*/
 	virtual bool Get_CameraParameters(float& TP_FOV, float& FP_FOV) = 0 ;
 
-	/* »ñµÃµÚÒ»ÈË³ÆÊÓ½ÇµÄÉãÏñ»úÎ»ÖÃ*/
+	/* è·å¾—ç¬¬ä¸€äººç§°è§†è§’çš„æ‘„åƒæœºä½ç½®*/
 	virtual FVector Get_FP_CameraTarget() = 0;
 
-	/*»ñµÃµÚÈıÈË³ÆÏÂÖáµãµÄÎ»ÖÃ*/
+	/*è·å¾—ç¬¬ä¸‰äººç§°ä¸‹è½´ç‚¹çš„ä½ç½®*/
 	virtual FTransform Get_TP_PivotTarget() = 0;
 
 
