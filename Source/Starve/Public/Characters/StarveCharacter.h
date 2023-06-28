@@ -23,14 +23,14 @@ public:
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	UStaticMeshComponent* StaticMesh;
 
-	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
-	USceneComponent* VisualMeshes;
+	//UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	//USceneComponent* VisualMeshes;
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
 	USkeletalMeshComponent* SkeletalMesh;
 
-	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
-	USkeletalMeshComponent* BodyMesh;
+	//UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	//USkeletalMeshComponent* BodyMesh;
 
 	virtual void Tick(float DeltaTime) override;
 
@@ -55,18 +55,59 @@ public:
 		FMantle_Asset Mantle_1m_Box = FMantle_Asset(FVector(0.f, 65.f, 100.f), 50.f, 1.f, 0.5f, 100.f, 1.f, 0.f);;
 
 	/*默认的翻滚蒙太奇*/
-	UPROPERTY(Category = "Roll", EditAnywhere, BlueprintReadWrite)
-		UAnimMontage* LandRollDefault;
+	UPROPERTY(Category = "RollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* LandRoll_Default;
 
+	UPROPERTY(Category = "RollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* LandRoll_RH;
+	
+	UPROPERTY(Category = "RollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* LandRoll_LH;
+	
+	UPROPERTY(Category = "RollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* LandRoll_2H;
 
-	virtual FVector Get_FP_CameraTarget() override;
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpFront_Default;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpFront_RH;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpFront_LH;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpFront_2H;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpBack_Default;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpBack_RH;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpBack_LH;
+	
+	/*Radgoll起身动画*/
+	UPROPERTY(Category = "RagdollAnimation", EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* GetUpBack_2H;
 
-	/*获得第三人称下人物的基础锚点位置*/
+	/****************Camera Interfaces**********************/
+
+	/*获得第三人称下人物的基础锚点位置，在这里是返回root跟head骨骼的中间位置*/
 	UFUNCTION(BlueprintCallable)
 	virtual FTransform Get_TP_PivotTarget() override;
 
-	/*获得第三人称左右肩的摄像机位置*/
+	/*根据左右肩返回不同的进行球体检测的开始位置*/
 	virtual float Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery& TraceChannel) override;
+
 
 	virtual FMantle_Asset GetMantleAsset(EMantleType MantleType) override;
 
@@ -90,4 +131,7 @@ public:
 	void UpdateHeldObjectAnimations();
 
 	virtual void OnOverlayStateChanged(EStarve_OverlayState NewOverlayState) override;
+
+	/*子类重写父类关于获得Ragdoll起身的动画*/
+	virtual UAnimMontage* GetGetUpAnimation(bool RagdollFaceUp) override;
 };

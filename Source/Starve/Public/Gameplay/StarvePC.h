@@ -13,15 +13,17 @@
  * 
  */
 UCLASS()
-class STARVE_API AStarvePC : public APlayerController
+class STARVE_API AStarvePC : public APlayerController,public IStarve_ControllerInterface
 {
 	GENERATED_BODY()
 
 public:
 	AStarvePC();
 
+	/*重写Onpossess函数*/
 	virtual void OnPossess(APawn* aPawn) override;
 
+	/**/
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
 	ACharacter* DebugFocusCharacter;
 
@@ -34,11 +36,13 @@ public:
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
 	bool ShowHUD;
 
+	/*是否开启PlayerCameraManager的绘制*/
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
-	bool ShowTraces;
+	bool bShowTraces;
+
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
-	bool ShowDebugShapes;
+	bool bShowDebugShapes;
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
 	bool ShowLayerColors;
@@ -48,4 +52,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
 	bool ShowCharacterInfo;
+
+
+
+public:
+	/****************Controller Interfaces *********************/
+	/*是否开启 PlayerCameraManager 的Character 与 Camera 之间球体检测绘制*/
+	virtual bool I_ShowCameraManagerTraces() override;
+
+	/*是否开启CameraManager的关于Pivot轴点位置相关的绘制*/
+	bool I_ShowDebugShapes() override;
+
 };

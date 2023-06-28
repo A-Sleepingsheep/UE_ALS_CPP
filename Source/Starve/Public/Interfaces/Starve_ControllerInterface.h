@@ -22,4 +22,9 @@ class STARVE_API IStarve_ControllerInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
+	/*是否绘制Character跟Camera之间进行球体检测的线条显示*/
+	virtual bool I_ShowCameraManagerTraces() = 0;
+
+	/*是否绘制CameraManager的Debug Shapes*/
+	virtual bool I_ShowDebugShapes() = 0;
 };

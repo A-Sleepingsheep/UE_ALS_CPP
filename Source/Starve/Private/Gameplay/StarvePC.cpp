@@ -2,16 +2,13 @@
 
 
 #include "Gameplay/StarvePC.h"
+//#include "Kismet/GameplayStatics.h"
 
 #include "CameraSystem/Starve_PlayerCameraManager.h"
+#include "Interfaces/Starve_InputInterface.h"
 
 AStarvePC::AStarvePC() {
-	static ConstructorHelpers::FClassFinder<APlayerCameraManager> PCMFinder(TEXT("Class'/Script/Starve.Starve_PlayerCameraManager'"));
-	if (PCMFinder.Class != NULL) {
-		this->PlayerCameraManagerClass = PCMFinder.Class;
-	}
-
-
+	this->PlayerCameraManagerClass = AStarve_PlayerCameraManager::StaticClass();
 }
 
 
@@ -19,8 +16,18 @@ void AStarvePC::OnPossess(APawn* aPawn)
 {
 	Super::OnPossess(aPawn);
 
-	AStarve_PlayerCameraManager* SPCM = Cast<AStarve_PlayerCameraManager>(PlayerCameraManager);
-	if (SPCM != NULL) {
-		SPCM->OnPossess(aPawn);
+	AStarve_PlayerCameraManager* temp = Cast<AStarve_PlayerCameraManager>(PlayerCameraManager);
+	if (temp != nullptr) {
+		temp->OnPlayerControllerPossess(aPawn);
 	}
+}
+
+bool AStarvePC::I_ShowDebugShapes()
+{
+	return bShowDebugShapes;
+}
+
+bool AStarvePC::I_ShowCameraManagerTraces()
+{
+	return bShowTraces;
 }

@@ -41,13 +41,13 @@ public:
 
 #pragma region CameraSystem
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		bool bRightShoulder; 
+	bool bRightShoulder; 
 
 	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		float ThirdPerson_FOV = 90.0f; /*第三人称FOV*/
+	float ThirdPerson_FOV = 90.0f; /*第三人称FOV*/
 
 	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		float FirstPerson_FOV = 90.0f; /*第一人称FOV*/
+	float FirstPerson_FOV = 90.0f; /*第一人称FOV*/
 
 	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float LookRightRate = 1.25;/*Controller水平变化速度，主要用于视线水平变化*/
@@ -254,11 +254,15 @@ protected:
 
 public:
 	#pragma region CameraInterface
+	/*获得第一人称摄像机的位置*/
 	virtual FVector Get_FP_CameraTarget() override;
 
+	/*获得第三人称的视角目标，在子类中有重写，第三人称下角色的PivotTarget是root跟head的中间点*/
 	virtual FTransform Get_TP_PivotTarget() override;
 
 	virtual float Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery& TraceChannel) override;
+
+	/*获得TP_FOV,FP_FOV*/
 	virtual bool Get_CameraParameters(float& TP_FOV, float& FP_FOV) override;
 	#pragma endregion
 
@@ -300,11 +304,17 @@ public:
 	#pragma endregion
 
 	//RotationSystem
-	void UpdateGroundedRotation();//更新在地面上的选装模式
-	bool CanUpdateMovingRotation();//判断是否更新运动旋转
+	//更新在地面上的旋转模式
+	void UpdateGroundedRotation();
+
+	//判断是否更新运动旋转
+	bool CanUpdateMovingRotation();
+	
 	//根据摄像机的旋转平滑人物的旋转
 	void SmoothCharacterRotation(const FRotator& Target,float TargetInterpSpeed,float ActorInterpSpeed);
-	float CalculateGroundedRotationRate();//计算人物在地面上的旋转速度
+
+	//计算人物在地面上的旋转速度
+	float CalculateGroundedRotationRate();
 	float GetAnimCurveValue(FName CurveName);//获得动画曲线值
 	void LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed);//限制Rotation
 
@@ -315,21 +325,25 @@ public:
 	void UpdateInAirRotation();
 
 	//MantleSystem
-	/*攀爬检测*/
+	/*通过多次射线检测判定角色是否可以攀爬，获取攀爬障碍物的Transform以及Component，以及根据攀爬高度确定攀爬类型*/
 	bool MantleCheck(FMantle_TraceSettings TraceSettings,EDrawDebugTrace::Type DebugTrace);
 
-	/*获得经过ZOffset偏移的胶囊体组件的位置，主要是为了进行修正，对攀爬的检测有很大的作用*/
+	/**
+	* 获得胶囊体底部的Location，ZOffset是Z方向上的偏移，用于细微调整
+	* @return 从胶囊体中心Location向下偏移胶囊体半高+ZOffset
+	*/
 	FVector GetCapsuleBaseLocation(float ZOffset);
 
 	/*获得人物在进行攀爬检测时是往哪边运动的*/
 	FVector GetPlayerMovementInput();
 
-	/*从BaseLocation处偏移ZOffset获得胶囊体的位置*/
+	/*对BaseLocation的值进行GetCapsuleBaseLocation的逆运算获得所需Capsule胶囊体的位置*/
 	FVector GetCapsuleLocationFromBase(const FVector& BaseLocation, float ZOffset);
 
-	/*检测是否有足够的空间容纳胶囊体*/
+	/*检测是否有足够的空间容纳胶囊体，HeightOffset和RadiusOffset是用于微调的量*/
 	bool CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const FVector& TargetLocation, float HeihtOffset, float RadiusOffset, EDrawDebugTrace::Type DegugType);
 
+	//EDrawDebugTrace::Type GetTraceDebugType(EDrawDebugTrace::Type ShowTraceType);
 	
 protected:
 
@@ -349,7 +363,7 @@ public:
 	virtual void MantleEnd();
 
 	/*攀爬更新角色位置和旋转*/
-	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, FHitResult& HitResult, bool bTeleport);
+	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, ETeleportType Teleport);
 
 	/*响应站立蹲伏的ActionInput函数*/
 	void StanceAction();

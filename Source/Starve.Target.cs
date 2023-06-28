@@ -9,6 +9,6 @@ public class StarveTarget : TargetRules
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
-		ExtraModuleNames.AddRange( new string[] { "Starve" } );
+		ExtraModuleNames.AddRange( new string[] { "Starve"} );
 	}
 }

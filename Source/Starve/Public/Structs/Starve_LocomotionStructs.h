@@ -266,16 +266,20 @@ public:
 	/*翻墙蒙太奇*/
 	UAnimMontage* AnimMontage;
 
-
+	/*攀爬曲线*/
 	UCurveVector* PositionCorrectionCurve;
 
+	/*播放速率*/
 	float PlayRate;
 
+	/*动画开始播放的时间*/
 	float StartingPosition;
 
+	/*开始位置的偏移*/
 	FVector StartingOffset;
 };
 
+/*Mantle检测的参数*/
 USTRUCT(BlueprintType)
 struct FMantle_TraceSettings
 {
@@ -284,11 +288,20 @@ struct FMantle_TraceSettings
 public:
 	FMantle_TraceSettings() {};
 	FMantle_TraceSettings(float MaxLH, float MinLH, float RD, float FTR, float DTR) :MaxLedgeHeight(MaxLH), MinLedgeHeight(MinLH),ReachDistance(RD), ForwardTraceRadius(FTR), DownwardTracrRadius(DTR) {};
-
+	
+	/*从BaseLocation向上进行检测的最大值*/
 	float MaxLedgeHeight;
+
+	/*从BaseLocation向上进行检测的最小值*/
 	float MinLedgeHeight;
+
+	/*MantleCheck时根据运动方向进行Capsule射线检测时范围缩放值，相当于检测距离*/
 	float ReachDistance;
+
+	/*MantleCheck第一步Capsule检测时胶囊体射线的半径*/
 	float ForwardTraceRadius;
+
+	/*MantleCheck中Sphere检测的半径，根据人物的体型可能会有所不同*/
 	float DownwardTracrRadius;
 };
 

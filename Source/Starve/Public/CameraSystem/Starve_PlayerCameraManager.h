@@ -20,48 +20,72 @@ class STARVE_API AStarve_PlayerCameraManager : public APlayerCameraManager
 public:
 	AStarve_PlayerCameraManager();
 
+	static FName CameraMeshName;
+
 private:
+	/*相机模型，这里主要是使用骨骼的曲线，进而达到使用曲线控制角色玩家的视角*/
 	UPROPERTY(Category = CameraMesh, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	USkeletalMeshComponent* CameraBehavior;
+	USkeletalMeshComponent* CameraMesh;
 	
+	/*玩家控制的角色*/
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	APawn* ControlledPawn;
 
+	/*相机目标Rotation,每帧更新*/
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	FRotator TargetCameraRotation;
 
-	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator DebugViewRotation;/*Debug模式固定视角的旋转*/
-
-	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector DebugViewOffset;/*Debug模式固定视角的Offset*/
-
+	/*平滑过渡到TargetPivot的中间过渡 Transform*/
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FTransform SmoothedTargetPivot;/*平缓目标轴点*/
+	FTransform SmoothedTargetPivot;
 
+	/*PivotLocation（蓝色球体位置）：SmoothedTargetPivot + 世界坐标系下的偏移*/
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector PivotLocation;/*轴点位置*/
+	FVector PivotLocation;
 
+	/*每帧更新的摄像机目标位置*/
 	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector TargetCameraLocation;/*摄像机目标位置*/
-
+	FVector TargetCameraLocation;
 
 public:
-	FORCEINLINE USkeletalMeshComponent* GetMesh() const { return CameraBehavior; }
+	/*获得相机模型的Mesh*/
+	FORCEINLINE USkeletalMeshComponent* GetCameraMesh() const { return CameraMesh; }
 
-	virtual void OnPossess(APawn* Pawn);
+	/**
+	* 当PlayerController调用 OnPossess 时，会调用该函数对ControlledPawn进行赋值
+	* 同时对摄像机模型的动画蓝图进行PlayerController和Pawn的赋值
+	**/
+	virtual void OnPlayerControllerPossess(APawn* Pawn);
 
-	virtual void UpdateCamera(float DeltaTime) override;
 
+protected:
+	/*每帧调用，更新ViewTarget*/
 	virtual void UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime) override;
 
-	void CustomCameraBehavior(float DeltaTime, FMinimalViewInfo& OutResult);
-
-	EDrawDebugTrace::Type GetDebugTraceType(EDrawDebugTrace::Type DrawDebugTrace);
+	/*自定义更新ViewTarget，在UpdateViewTargetInternal中调用*/
+	virtual void CustomCameraBehavior(float DeltaTime, FMinimalViewInfo& POV);
 
 	/*获得AnimInstance的曲线信息*/
-	float GetCameraBehaviorParam(FName CurveName);
+	float GetCameraBehaviorCurveValue(FName CurveName);
 
-	/*分别精确计算位置X,Y，Z的差值过渡值*/
+	/*在本地坐标系下进行Location的过渡差值计算,这样计算就与轴无关，这样可以最大程度的控制差值的过渡*/
 	FVector CalculateAxisIndependentLag(FVector CurrentLocation, FVector TargetLocation, FRotator CameraRotation, FVector LagSpeeds);
+
+public:
+	/*********************************************************************/
+	//Debug模式
+	/*Debug模式下固定视角的Rotation*/
+	UPROPERTY(Category = Starve_Debug, EditAnywhere, BlueprintReadWrite)
+	FRotator DebugViewRotation;
+
+	/*Debug模式下固定视角的Location Offset*/
+	UPROPERTY(Category = Starve_Debug, EditAnywhere, BlueprintReadWrite)
+	FVector DebugViewOffset;
+
+	/*Debug模式下Character与Camera之间进行球体检测时的DrawDebugType*/
+	EDrawDebugTrace::Type GetDebugTraceType(EDrawDebugTrace::Type DrawDebugTrace);
+
+	/************************************************************************************/
+
+
 };

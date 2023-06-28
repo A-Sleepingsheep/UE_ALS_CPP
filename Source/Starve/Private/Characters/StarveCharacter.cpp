@@ -9,8 +9,8 @@ AStarveCharacter::AStarveCharacter() {
 	HeldObjectRoot = CreateDefaultSubobject<USceneComponent>(FName("HeldObjectRoot"));
 	HeldObjectRoot->SetupAttachment(GetMesh());
 
-	VisualMeshes = CreateDefaultSubobject<USceneComponent>(FName("VisualMeshes"));
-	VisualMeshes->SetupAttachment(GetMesh());
+	//VisualMeshes = CreateDefaultSubobject<USceneComponent>(FName("VisualMeshes"));
+	//VisualMeshes->SetupAttachment(GetMesh());
 
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(FName("StaticMesh"));
 	StaticMesh->SetupAttachment(HeldObjectRoot);
@@ -18,13 +18,13 @@ AStarveCharacter::AStarveCharacter() {
 	SkeletalMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("SkeletalMesh"));
 	SkeletalMesh->SetupAttachment(HeldObjectRoot);
 
-	BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("BodyMesh"));
-	BodyMesh->SetupAttachment(VisualMeshes);
+	//BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("BodyMesh"));
+	//BodyMesh->SetupAttachment(VisualMeshes);
 	
 	static ConstructorHelpers::FClassFinder<UAnimInstance> bodyanimfinder(TEXT("AnimBlueprint'/Game/AdvancedLocomotionV4/Props/Meshes/Bow_AnimBP.Bow_AnimBP_C'"));
 	if (bodyanimfinder.Succeeded()) {
 		SkeletalMesh->SetAnimInstanceClass(bodyanimfinder.Class);
-		BodyMesh->SetAnimInstanceClass(bodyanimfinder.Class);
+		//BodyMesh->SetAnimInstanceClass(bodyanimfinder.Class);
 	}
 
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkeleMeshFinder(TEXT("SkeletalMesh'/Game/MyALS_CPP/CharacterAssets/Mesh/StarveMan.StarveMan'"));
@@ -65,7 +65,7 @@ AStarveCharacter::AStarveCharacter() {
 	//LandRollDefault
 	static ConstructorHelpers::FObjectFinder<UAnimMontage> landrolldefault(TEXT("AnimMontage'/Game/MyALS_CPP/CharacterAssets/AnimationExamples/Actions/Starve_N_LandRoll_F_Montage_Default.Starve_N_LandRoll_F_Montage_Default'"));
 	if (landrolldefault.Succeeded()) {
-		LandRollDefault = landrolldefault.Object;
+		LandRoll_Default = landrolldefault.Object;
 	}
 }
 
@@ -76,19 +76,11 @@ void AStarveCharacter::Tick(float DeltaTime)
 }
 
 #pragma region CameraInterfaceDefinition
-
-FVector AStarveCharacter::Get_FP_CameraTarget()
-{
-	return GetMesh()->GetSocketLocation(TEXT("FP_Camera"));
-}
-
 FTransform AStarveCharacter::Get_TP_PivotTarget()
 {
 	FVector headLocation = GetMesh()->GetSocketLocation(TEXT("head"));
 	FVector rootLocation = GetMesh()->GetSocketLocation(TEXT("root"));
-	FVector pivotLocation = (headLocation + rootLocation) / 2;
-	FRotator actorRotation = GetActorRotation();
-	return FTransform(actorRotation, pivotLocation);
+	return FTransform(GetActorRotation(), (headLocation + rootLocation) / 2);
 }
 
 float AStarveCharacter::Get_TP_TraceParams(FVector& TraceOrigin, ETraceTypeQuery& TraceChannel)
@@ -174,11 +166,29 @@ UAnimMontage* AStarveCharacter::GetRollAnimation()
 {
 	switch (OverlayState)
 	{
-		case EStarve_OverlayState::Default: {
-			return LandRollDefault;
-		}
+		case EStarve_OverlayState::Default:
+		case EStarve_OverlayState::Masculine:
+		case EStarve_OverlayState::Feminine:
+			return LandRoll_Default;
+		case EStarve_OverlayState::Injured:
+			return LandRoll_LH;
+		case EStarve_OverlayState::HandsTied:
+		case EStarve_OverlayState::Rifle:
+			return LandRoll_2H;
+		case EStarve_OverlayState::Pistol_1H:
+		case EStarve_OverlayState::Postol_2H:
+			return LandRoll_RH;
+		case EStarve_OverlayState::Bow:
+		case EStarve_OverlayState::Touch:
+			return LandRoll_LH;
+		case EStarve_OverlayState::Binoculars:
+		case EStarve_OverlayState::Box:
+			return LandRoll_2H;
+		case EStarve_OverlayState::Barrel:
+			return LandRoll_LH;
+		default:
+			return LandRoll_Default;
 	}
-	return LandRollDefault;
 }
 
 void AStarveCharacter::UpdateHeldObject()
@@ -272,6 +282,67 @@ void AStarveCharacter::OnOverlayStateChanged(EStarve_OverlayState NewOverlayStat
 {
 	Super::OnOverlayStateChanged(NewOverlayState);
 	UpdateHeldObject();
+}
+
+UAnimMontage* AStarveCharacter::GetGetUpAnimation(bool RagdollFaceUp)
+{
+	if (RagdollFaceUp) {
+		switch (OverlayState)
+		{
+			case EStarve_OverlayState::Default:
+			case EStarve_OverlayState::Masculine:
+			case EStarve_OverlayState::Feminine: {
+				return GetUpBack_Default;
+			}
+			case EStarve_OverlayState::Injured:
+				return GetUpBack_LH;
+			case EStarve_OverlayState::HandsTied:
+				return GetUpBack_2H;
+			case EStarve_OverlayState::Rifle:
+			case EStarve_OverlayState::Pistol_1H:
+			case EStarve_OverlayState::Postol_2H:
+				return GetUpBack_RH;
+			case EStarve_OverlayState::Bow:
+			case EStarve_OverlayState::Touch:
+				return GetUpBack_LH;
+			case EStarve_OverlayState::Binoculars:
+				return GetUpBack_RH;
+			case EStarve_OverlayState::Box:
+				return GetUpBack_2H;
+			case EStarve_OverlayState::Barrel:
+				return GetUpBack_LH;
+			default:
+				return GetUpBack_Default;
+		}
+	}
+	else {
+		switch (OverlayState)
+		{
+			case EStarve_OverlayState::Default:
+			case EStarve_OverlayState::Masculine:
+			case EStarve_OverlayState::Feminine:
+				return GetUpFront_Default;
+			case EStarve_OverlayState::Injured:
+				return GetUpFront_LH;
+			case EStarve_OverlayState::HandsTied:
+				return GetUpFront_2H;
+			case EStarve_OverlayState::Rifle:
+			case EStarve_OverlayState::Pistol_1H:
+			case EStarve_OverlayState::Postol_2H:
+				return GetUpFront_RH;
+			case EStarve_OverlayState::Bow:
+			case EStarve_OverlayState::Touch:
+				return GetUpFront_LH;
+			case EStarve_OverlayState::Binoculars:
+				return GetUpFront_RH;
+			case EStarve_OverlayState::Box:
+				return GetUpFront_2H;
+			case EStarve_OverlayState::Barrel:
+				return GetUpFront_LH;
+			default:
+				return GetUpFront_Default;
+		}
+	}
 }
 
 #pragma endregion

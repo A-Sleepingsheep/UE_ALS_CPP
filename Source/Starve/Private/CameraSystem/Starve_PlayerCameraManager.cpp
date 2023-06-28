@@ -10,171 +10,152 @@
 #include "Interfaces/CameraInterface.h"
 #include "Gameplay/StarvePC.h"
 
+FName AStarve_PlayerCameraManager::CameraMeshName(TEXT("CameraMesh"));
 
 AStarve_PlayerCameraManager::AStarve_PlayerCameraManager() {
 
 	//创建摄像机管理对象的Mesh
-	CameraBehavior = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CameraBehavior"));
-	CameraBehavior->SetupAttachment(RootComponent);
-
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> CameraMesh(TEXT("SkeletalMesh'/Game/MyALS_CPP/Blueprints/CameraSystem/Starve_Camera.Starve_Camera'"));
-	if (CameraMesh.Object != NULL) {
-		CameraBehavior->SetSkeletalMesh(CameraMesh.Object);
-	}
+	CameraMesh = CreateDefaultSubobject<USkeletalMeshComponent>(CameraMeshName);
+	CameraMesh->SetupAttachment(RootComponent);
 
 	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimInstanceFinder(TEXT("AnimBlueprint'/Game/MyALS_CPP/Blueprints/CameraSystem/Starve_Camera_ABP.Starve_Camera_ABP_C'"));
 	if (AnimInstanceFinder.Succeeded()) {
-		this->GetMesh()->AnimClass = AnimInstanceFinder.Class;
+		this->GetCameraMesh()->AnimClass = AnimInstanceFinder.Class;
 	}
 
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> CameraMeshFinder(TEXT("SkeletalMesh'/Game/MyALS_CPP/Blueprints/CameraSystem/Starve_Camera.Starve_Camera'"));
+	if (CameraMeshFinder.Object != NULL) {
+		CameraMesh->SetSkeletalMesh(CameraMeshFinder.Object);
+	}
+	
 	DebugViewRotation = FRotator(0.f, -5.f, 180.f);
 	DebugViewOffset = FVector(350.f, 0.f, 50.f);
 }
 
-void AStarve_PlayerCameraManager::OnPossess(APawn* Pawn)
+void AStarve_PlayerCameraManager::OnPlayerControllerPossess(APawn* Pawn)
 {
-	this->ControlledPawn = Pawn;
+	ControlledPawn = Pawn;
 
-	//UE_LOG(LogTemp, Warning, TEXT("On AStarve_PlayerCameraManager Possess"));
-
-	UCameraAnimInstance* CameraAnimInstance = Cast<UCameraAnimInstance>(this->GetMesh()->GetAnimInstance());
+	UCameraAnimInstance* CameraAnimInstance = Cast<UCameraAnimInstance>(this->GetCameraMesh()->GetAnimInstance());
 	if (CameraAnimInstance != nullptr) {
-
-		//UE_LOG(LogTemp, Warning, TEXT("On CameraAnimInstance Assign"));
-
 		CameraAnimInstance->SetPlayerController(GetOwningPlayerController());
 		CameraAnimInstance->SetControlledPawn(ControlledPawn);
 	}
 }
 
-void AStarve_PlayerCameraManager::UpdateCamera(float DeltaTime)
-{
-	Super::UpdateCamera(DeltaTime);
-
-
-}
 
 void AStarve_PlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime)
 {
+	/*在更新ViewTarget的时候，如果角色有对应的标签，则调用自己的Update函数*/
 	if (OutVT.Target->ActorHasTag("Starve_Character")) {
-		//UKismetSystemLibrary::PrintString(this, "CalcCamera", true, false, FLinearColor::Blue, 0.f);
-
 		CustomCameraBehavior(DeltaTime, OutVT.POV);
 	}
 	else {
-		//UKismetSystemLibrary::PrintString(this, "CalcCamera2", true, false, FLinearColor::Blue, 2.f);
-		Super::CalcCamera(DeltaTime, OutVT.POV);
+		Super::UpdateViewTargetInternal(OutVT, DeltaTime);
 	}
 }
 
-void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimalViewInfo& OutResult)
+void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimalViewInfo& POV)
 {
 	
 	ICameraInterface* CameraInterface = Cast<ICameraInterface>(ControlledPawn);
 	if (CameraInterface != nullptr) {
-		/*第一步*/
-		//获得通过CameraInterface获得信息
-		FTransform Pivot_Target;
-		FVector FP_Target;
-		float FP_FOV, TP_FOV = 0.f;
-		Pivot_Target = CameraInterface->Get_TP_PivotTarget();
-		FP_Target = CameraInterface->Get_FP_CameraTarget();
-		CameraInterface->Get_CameraParameters(TP_FOV, FP_FOV);
+		/*1.获得通过CameraInterface获得相对应的信息，有些值移到第8步了*/
+		FTransform Pivot_Target = CameraInterface->Get_TP_PivotTarget();
 
-
-		/*第二步*/
-		//将摄像机的Rotation跟PlayerController的Rotation进行同步，利用差值营造出延迟的感觉
+		/*2.将当前Camera的Rotation跟PlayerController的Rotation进行差值过渡*/
 		FRotator PCRotation = GetOwningPlayerController()->GetControlRotation();
 		FRotator CameraRotation = GetCameraRotation();
-		float Alpha = GetCameraBehaviorParam(FName("RotationLagSpeed"));
-		FRotator InterpRotation = FMath::RInterpTo(CameraRotation, PCRotation, DeltaTime, Alpha);
-		//Debug
-		TargetCameraRotation = UKismetMathLibrary::RLerp(InterpRotation, DebugViewRotation, GetCameraBehaviorParam(FName("Override_Debug")), true);
+		float Alpha = GetCameraBehaviorCurveValue(FName("RotationLagSpeed"));
+		CameraRotation = FMath::RInterpTo(CameraRotation, PCRotation, DeltaTime, Alpha);
+		//增加Debug模式下的过渡
+		Alpha = GetCameraBehaviorCurveValue(FName("Override_Debug"));
+		TargetCameraRotation = UKismetMathLibrary::RLerp(CameraRotation, DebugViewRotation, Alpha, true);
 
-		/*第三步*/
-		//获得从摄像机视角到人物轴点坐标(Pivot_Target)的每帧过渡值
-		FVector LagVector;
-		LagVector.X = GetCameraBehaviorParam(FName("PivotLagSpeed_X"));
-		LagVector.Y = GetCameraBehaviorParam(FName("PivotLagSpeed_Y"));
-		LagVector.Z = GetCameraBehaviorParam(FName("PivotLagSpeed_Z"));
-		FVector CalculVector = CalculateAxisIndependentLag(SmoothedTargetPivot.GetLocation(), Pivot_Target.GetLocation(), TargetCameraRotation, LagVector);
-		SmoothedTargetPivot = FTransform(Pivot_Target.GetRotation(), CalculVector);
+		/*3.利用CalculateAxisIndependentLag和 Pivot_Target(绿色球体) 来计算 SmoothedTargetPivot(橙色球体) 的Location*/
+		FVector TempVector;
+		TempVector.X = GetCameraBehaviorCurveValue(FName("PivotLagSpeed_X"));
+		TempVector.Y = GetCameraBehaviorCurveValue(FName("PivotLagSpeed_Y"));
+		TempVector.Z = GetCameraBehaviorCurveValue(FName("PivotLagSpeed_Z"));
+		TempVector = CalculateAxisIndependentLag(SmoothedTargetPivot.GetLocation(), Pivot_Target.GetLocation(), TargetCameraRotation, TempVector);
+		SmoothedTargetPivot = FTransform(Pivot_Target.GetRotation(), TempVector);
 
-		/*第四步*/
-		//获得人物旋转增量并加给SmoothSmoothedTargetPivot的Location
-		FVector PivotAddLocationX = SmoothedTargetPivot.GetRotation().GetForwardVector() * GetCameraBehaviorParam(FName("PivotOffset_X"));
-		FVector PivotAddLocationY = SmoothedTargetPivot.GetRotation().GetRightVector() * GetCameraBehaviorParam(FName("PivotOffset_Y"));
-		FVector PivotAddLocationZ = SmoothedTargetPivot.GetRotation().GetUpVector() * GetCameraBehaviorParam(FName("PivotOffset_Z"));
+		/*4.SmoothedTargetPivot + 世界坐标系下轴点的偏移 = PivotLocation(蓝色球体)*/
+		FVector LocationOffset_X = SmoothedTargetPivot.GetRotation().GetForwardVector() * GetCameraBehaviorCurveValue(FName("PivotOffset_X"));
+		FVector LocationOffset_Y = SmoothedTargetPivot.GetRotation().GetRightVector() * GetCameraBehaviorCurveValue(FName("PivotOffset_Y"));
+		FVector LocationOffset_Z = SmoothedTargetPivot.GetRotation().GetUpVector() * GetCameraBehaviorCurveValue(FName("PivotOffset_Z"));
+		//PivotLocation赋值
+		PivotLocation = LocationOffset_X + LocationOffset_Y + LocationOffset_Z + SmoothedTargetPivot.GetLocation();
 
-		PivotLocation = PivotAddLocationX + PivotAddLocationY + PivotAddLocationZ + SmoothedTargetPivot.GetLocation();
+		/*5.PivotLocation + 世界坐标系下Camera的偏移 = TargetCameraLocation*/
+		LocationOffset_X = TargetCameraRotation.Vector() * GetCameraBehaviorCurveValue(FName("CameraOffset_X"));
+		LocationOffset_Y = FRotationMatrix(TargetCameraRotation).GetScaledAxis(EAxis::Y) * GetCameraBehaviorCurveValue(FName("CameraOffset_Y"));
+		LocationOffset_Z = FRotationMatrix(TargetCameraRotation).GetScaledAxis(EAxis::Z) * GetCameraBehaviorCurveValue(FName("CameraOffset_Z"));
+		//TargetCameraLocation赋值
+		TargetCameraLocation = LocationOffset_X + LocationOffset_Y + LocationOffset_Z + PivotLocation;
+		//在加上Debug模式下的，Alpha值就是上面获得的对应曲线Override_Debug的值
+		if (Alpha > 0.5f) {
+			TargetCameraLocation = UKismetMathLibrary::VLerp(TargetCameraLocation, Pivot_Target.GetLocation() + DebugViewOffset, Alpha);
+		}
 
-		/*第五步*/
-		//根据上一步获得的位置，和期望的摄像机的位移增量获得期望的摄像机位置
-		FVector CameraAddLocationX = TargetCameraRotation.Vector() * GetCameraBehaviorParam(FName("CameraOffset_X"));
-		FVector CameraAddLocationY = FRotationMatrix(TargetCameraRotation).GetScaledAxis(EAxis::Y) * GetCameraBehaviorParam(FName("CameraOffset_Y"));
-		FVector CameraAddLocationZ = FRotationMatrix(TargetCameraRotation).GetScaledAxis(EAxis::Z) * GetCameraBehaviorParam(FName("CameraOffset_Z"));
-
-		FVector CameraAfterLocation = CameraAddLocationX + CameraAddLocationY + CameraAddLocationZ + PivotLocation;
-		//Debug
-		FVector DebugLocation = Pivot_Target.GetLocation() + DebugViewOffset;
-		float DebugAlpha = GetCameraBehaviorParam(FName("Override_Debug"));
-
-		TargetCameraLocation = UKismetMathLibrary::VLerp(CameraAfterLocation, DebugLocation, DebugAlpha);
-
-		/*第六步*/
-		//进行球体检测,检测摄像机路径是否有遮挡
-		FVector TraceOrigin;
+		/*6.根据Character提供的位置与Camera位置之间进行球体检测，如果之间有遮挡，则进行像弹簧臂一样的伸缩*/
+		//Trave的Start点是TempVector，因为是通过引用的方式，所以在Get_TP_TraceParams后会有值
+		// 用上面的Alpha值代替Radius，减小内存消耗
 		ETraceTypeQuery TraceChannel;
-		float Radius = CameraInterface->Get_TP_TraceParams(TraceOrigin, TraceChannel);
+		Alpha = CameraInterface->Get_TP_TraceParams(TempVector, TraceChannel);
 		EDrawDebugTrace::Type drawdebugtrace = GetDebugTraceType(EDrawDebugTrace::ForOneFrame);
 		FHitResult OutHit;
-		if (UKismetSystemLibrary::SphereTraceSingle(this, TraceOrigin, TargetCameraLocation, 
-													Radius, TraceChannel,
+		if (UKismetSystemLibrary::SphereTraceSingle(this, TempVector, TargetCameraLocation, 
+													Alpha, TraceChannel,
 													false, {},
-													drawdebugtrace, OutHit, true,
-													FLinearColor::Yellow,FLinearColor::Black,5.0f)) 
+													drawdebugtrace, OutHit, true)) 
 		{
 			//碰撞点 - 结束点 代表着摄像机往前挪多少，是个负数，TraceEnd一般来说就是填入的 End
 			if (OutHit.bBlockingHit && !OutHit.bStartPenetrating) {
-				FVector SubVector = OutHit.Location - OutHit.TraceEnd;	
-				TargetCameraLocation += SubVector;
+				TempVector = OutHit.Location - OutHit.TraceEnd;
+				TargetCameraLocation += TempVector;
 			}
 		}
 
-		//UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_Visibility),
-
-		/*第七步*/
-		//绘制Debug球体
-		if (Cast<AStarvePC>(GetOwningPlayerController())->ShowDebugShapes) {
-			//从人物处获得的Pivot_Target
+		/*7.Debug模式下绘制球体*/
+		if (Cast<IStarve_ControllerInterface>(GetOwningPlayerController())->I_ShowDebugShapes()) {
+			//绘制 Pivot_Target（绿色球体）
 			UKismetSystemLibrary::DrawDebugSphere(this, Pivot_Target.GetLocation(), 16.f, 8, FLinearColor::Green, 0.f, 0.5f);
-			//平滑过渡时的SmoothedTargetPivot
+			//绘制 SmoothedTargetPivot（橙色球体）
 			UKismetSystemLibrary::DrawDebugSphere(this, SmoothedTargetPivot.GetLocation(), 16.f, 8, FLinearColor(1.f, 0.166667f, 0.f, 1.f), 0.f, 0.5f);
-			//平滑过度时最终的PivotLocation位置
-			UKismetSystemLibrary::DrawDebugSphere(this, PivotLocation, 16.f, 8, FLinearColor::Blue, 0.f, 0.5f);
-			//绘制SmoothedTargetPivot到Pivot_Target之间的线条
+			//绘制 PivotLocation (蓝色球体）
+			UKismetSystemLibrary::DrawDebugSphere(this, PivotLocation, 16.f, 8, FLinearColor(0, 0.666667f, 1.f, 1.f), 0.f, 0.5f);
+			//绘制 SmoothedTargetPivot 到 Pivot_Target 之间的线条
 			UKismetSystemLibrary::DrawDebugLine(this, SmoothedTargetPivot.GetLocation(), Pivot_Target.GetLocation(), FLinearColor(1, 0.166667, 0, 1), 0.f, 1.f);
-			//绘制
-			UKismetSystemLibrary::DrawDebugLine(this, PivotLocation, SmoothedTargetPivot.GetLocation(), FLinearColor::Blue, 0.f, 1.f);
+			//绘制 SmoothedTargetPivot 到 PivotLocation 之间的线条
+			UKismetSystemLibrary::DrawDebugLine(this, PivotLocation, SmoothedTargetPivot.GetLocation(), FLinearColor(0, 0.666667f, 1.f, 1.f), 0.f, 1.f);
 		}
 
-		/*第八步*/
-		//输出返回值
-		//获得第三人称与第一人称的变化
-		FTransform TP_CameraTransform(TargetCameraRotation, TargetCameraLocation);
-		FTransform FP_CameraTransform(TargetCameraRotation, FP_Target);
-		FTransform T_F_Transform = UKismetMathLibrary::TLerp(TP_CameraTransform, FP_CameraTransform, GetCameraBehaviorParam(FName("Weight_FirstPerson")));
+		/*8.真正设置ViewTarget的值*/
+		// FP_CameraTarget:第一人称的Camera Location，使用前面的TempVector节省内存
+		TempVector = CameraInterface->Get_FP_CameraTarget();
 
-		//Debug
-		FTransform Debug_CameraTransform(DebugViewRotation, TargetCameraLocation);
-		FTransform Debug_Transform = UKismetMathLibrary::TLerp(T_F_Transform, Debug_CameraTransform, GetCameraBehaviorParam(FName("Override_Debug")));
+		float TP_FOV = 0.f;
+		CameraInterface->Get_CameraParameters(TP_FOV, Alpha); //这里用Alpha当做FP_FOV
+
+		//分别获得第三人称与第一人称的Transform
+		// TP_CameraTransform 使用 Pivot_Target（重复利用，节省内存)
+		Pivot_Target = FTransform(TargetCameraRotation, TargetCameraLocation); //第三人称Transform
+		FTransform Temp_Transform(TargetCameraRotation, TempVector); //第一人称Transform
+
+		//第一人称跟第三人称根据 Weight_FirstPerson(该值只有0和1两种情况)获得不同的值
+		Pivot_Target = UKismetMathLibrary::TLerp(Pivot_Target, Temp_Transform, GetCameraBehaviorCurveValue(FName("Weight_FirstPerson")));
+		
+		//Debug模式下的Transform
+		Temp_Transform = FTransform(DebugViewRotation, TargetCameraLocation);
+		Pivot_Target = UKismetMathLibrary::TLerp(Pivot_Target, Temp_Transform, GetCameraBehaviorCurveValue(FName("Override_Debug")));
 
 		//FOV
-		float L_FOV = UKismetMathLibrary::Lerp(TP_FOV, TP_FOV, GetCameraBehaviorParam(FName("Weight_FirstPerson")));
+		Alpha = UKismetMathLibrary::Lerp(TP_FOV, Alpha, GetCameraBehaviorCurveValue(FName("Weight_FirstPerson")));
 		
-		OutResult.Location = Debug_Transform.GetLocation();
-		OutResult.Rotation = Debug_Transform.Rotator();
-		OutResult.FOV = L_FOV;
+		POV.Location = Pivot_Target.GetLocation();
+		POV.Rotation = Pivot_Target.Rotator();
+		POV.FOV = Alpha;
 
 	}
 }
@@ -182,7 +163,7 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 
 EDrawDebugTrace::Type AStarve_PlayerCameraManager::GetDebugTraceType(EDrawDebugTrace::Type DrawDebugTrace)
 {
-	if (Cast<AStarvePC>(GetOwningPlayerController())->ShowTraces) {
+	if (Cast<IStarve_ControllerInterface>(GetOwningPlayerController())->I_ShowCameraManagerTraces()) {
 		return DrawDebugTrace;
 	}
 	else {
@@ -190,30 +171,30 @@ EDrawDebugTrace::Type AStarve_PlayerCameraManager::GetDebugTraceType(EDrawDebugT
 	}
 }
 
-float AStarve_PlayerCameraManager::GetCameraBehaviorParam(FName CurveName)
+float AStarve_PlayerCameraManager::GetCameraBehaviorCurveValue(FName CurveName)
 {
-	UAnimInstance* AnimInstance = CameraBehavior->GetAnimInstance();
+	UAnimInstance* AnimInstance = CameraMesh->GetAnimInstance();
 	if(AnimInstance != nullptr) {
 		return AnimInstance->GetCurveValue(CurveName);
 	}
 	return 0.0f;
 }
 
+
 FVector AStarve_PlayerCameraManager::CalculateAxisIndependentLag(FVector CurrentLocation, FVector TargetLocation, FRotator CameraRotation, FVector LagSpeeds)
 {
 	FRotator CameraRotationYaw = FRotator(0, CameraRotation.Yaw, 0);
 
-	//将世界空间转换成本地空间,返回的依然是在世界坐标系下的表示
-	FVector LocalCurrentLocation = UKismetMathLibrary::LessLess_VectorRotator(CurrentLocation, CameraRotationYaw);
-	FVector LocalTargetLocation = UKismetMathLibrary::LessLess_VectorRotator(TargetLocation, CameraRotationYaw);
+	//将世界坐标系转换成本地坐标系，在本地坐标系下进行差值
+	FVector LocalCurrentLocation = CameraRotationYaw.UnrotateVector(CurrentLocation);
+	FVector LocalTargetLocation = CameraRotationYaw.UnrotateVector(TargetLocation);
 
 	float DeltaTime = UGameplayStatics::GetWorldDeltaSeconds(this);
 	float X = FMath::FInterpTo(LocalCurrentLocation.X, LocalTargetLocation.X, DeltaTime, LagSpeeds.X);
 	float Y = FMath::FInterpTo(LocalCurrentLocation.Y, LocalTargetLocation.Y, DeltaTime, LagSpeeds.Y);
 	float Z = FMath::FInterpTo(LocalCurrentLocation.Z, LocalTargetLocation.Z, DeltaTime, LagSpeeds.Z);
-	FVector LocalReturnVector = FVector(X, Y, Z);
-
-	FVector ReturnVector = UKismetMathLibrary::GreaterGreater_VectorRotator(LocalReturnVector, CameraRotationYaw);
-	return ReturnVector;
+	LocalCurrentLocation = FVector(X, Y, Z);
+	//最后返回世界坐标系下Location
+	return CameraRotationYaw.RotateVector(LocalCurrentLocation);
 }
 
