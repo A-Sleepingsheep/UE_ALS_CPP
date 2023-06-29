@@ -30,8 +30,9 @@ public:
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
 	TArray<ACharacter*> AvailableDebugCharacters;
 
+	/*是否进入Debug视角*/
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
-	bool DebugView;
+	bool bDebugView;
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = Debug)
 	bool ShowHUD;
@@ -55,12 +56,17 @@ public:
 
 
 
+
+
+
 public:
 	/****************Controller Interfaces *********************/
 	/*是否开启 PlayerCameraManager 的Character 与 Camera 之间球体检测绘制*/
 	virtual bool I_ShowCameraManagerTraces() override;
 
 	/*是否开启CameraManager的关于Pivot轴点位置相关的绘制*/
-	bool I_ShowDebugShapes() override;
+	virtual bool I_ShowDebugShapes() override;
 
+	/*进入Debug视角*/
+	virtual bool I_DebugView() override;
 };

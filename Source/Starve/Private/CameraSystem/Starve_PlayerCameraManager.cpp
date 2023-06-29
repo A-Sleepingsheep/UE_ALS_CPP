@@ -28,7 +28,7 @@ AStarve_PlayerCameraManager::AStarve_PlayerCameraManager() {
 		CameraMesh->SetSkeletalMesh(CameraMeshFinder.Object);
 	}
 	
-	DebugViewRotation = FRotator(0.f, -5.f, 180.f);
+	DebugViewRotation = FRotator(-5.f, 180.f, 0);
 	DebugViewOffset = FVector(350.f, 0.f, 50.f);
 }
 

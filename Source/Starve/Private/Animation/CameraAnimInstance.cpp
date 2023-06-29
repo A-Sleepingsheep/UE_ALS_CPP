@@ -6,6 +6,7 @@
 #include "Interfaces/Starve_CharacterInterface.h"
 #include "Interfaces/CameraInterface.h"
 #include "Gameplay/StarvePC.h"
+#include "Interfaces/Starve_ControllerInterface.h"
 
 UCameraAnimInstance::UCameraAnimInstance() {
 	
@@ -40,8 +41,8 @@ void UCameraAnimInstance::UpdateCharacterInfo()
 		bRightShould = cami->Get_CameraParameters(f1, f2);
 	}
 
-	AStarvePC* coni = Cast<AStarvePC>(PlayerController);
+	IStarve_ControllerInterface* coni = Cast<IStarve_ControllerInterface>(PlayerController);
 	if (coni != nullptr) {
-		bDebugView = coni->DebugView;
+		bDebugView = coni->I_DebugView();
 	}
 }

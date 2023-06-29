@@ -8,7 +8,7 @@
 
 /*
 	Starve_LocomotionEnum
-	角色正常行走的状态：正常移动，跑步，冲刺
+	角色站立状态下根据移动速度做出的分类
 */
 UENUM(BlueprintType)
 enum class EStarve_Gait : uint8 {
@@ -22,16 +22,16 @@ enum class EStarve_Gait : uint8 {
 	Sprinting
 };
 
-/*角色移动时的动作，记录移动时正在干的事*/
+/*该枚举主要是针对有位移的蒙太奇动画使用，包括攀爬，翻滚，Ragdoll的起身*/
 UENUM(BlueprintType)
 enum class EStarve_MovementAction : uint8 {
 	/*无，当不需要Montage时的状态，例如行走、跑步、冲刺*/
 	None,
 
-	/*翻跃低墙时的状态*/
+	/*低攀爬*/
 	LowMantle,
 
-	/*翻跃高墙时的状态*/
+	/*高攀爬*/
 	HighMantle,
 
 	/*翻滚*/
@@ -83,12 +83,13 @@ enum class EStarve_OverlayState : uint8 {
 /*摄像机的旋转模式*/
 UENUM(BlueprintType)
 enum class EStarve_RotationMode : uint8 {
+	/*速度方向，代表着角色面向的方向跟他的移动方向是一致的*/
 	VelocityDirection,
 
-	/*平时*/
+	/*摄像机方向，角色的朝向跟摄像机朝向一致*/
 	LookingDirection,
 
-	/*瞄准时*/
+	/*持枪、弓箭时有瞄准的需要*/
 	Aiming
 };
 

@@ -26,10 +26,10 @@ public:
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 private:
-	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = CameraRef, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	APlayerController* PlayerController;
 
-	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = CameraRef, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	APawn* ControlledPawn;
 
 	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -57,11 +57,13 @@ private:
 	bool bDebugView;
 
 
-	void UpdateCharacterInfo();
 public:
+	/*Update，更新角色相关的信息*/
+	void UpdateCharacterInfo();
+
 	FORCEINLINE APlayerController* GetPlayerController() const { return this->PlayerController; }
 	FORCEINLINE APawn* GetControlledPawn() const { return this->ControlledPawn; }
 
-	FORCEINLINE void SetPlayerController(APlayerController* PC)  { this->PlayerController = PC; }
-	FORCEINLINE void SetControlledPawn(APawn* Pawn)  {  this->ControlledPawn = Pawn; }
+	FORCEINLINE void SetPlayerController(APlayerController* PC) { this->PlayerController = PC; };
+	FORCEINLINE void SetControlledPawn(APawn* Pawn) { this->ControlledPawn = Pawn; };
 };

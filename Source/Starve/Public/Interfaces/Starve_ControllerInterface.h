@@ -27,4 +27,7 @@ public:
 
 	/*是否绘制CameraManager的Debug Shapes*/
 	virtual bool I_ShowDebugShapes() = 0;
+
+	/*是否进入Debug视角*/
+	virtual bool I_DebugView() = 0;
 };
