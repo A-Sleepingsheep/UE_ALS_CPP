@@ -30,6 +30,7 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
+	/***************Override Parent Functions************************************************/
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -38,47 +39,153 @@ public:
 
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 
+	/*父类中响应Crouch的事件*/
+	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
-#pragma region CameraSystem
-	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+
+	/*Character从空中进入地面时触发*/
+	virtual void Landed(const FHitResult& Hit) override;
+	/*****************************************************************************************/
+
+
+	/***********************Camera System Setting Variables**********************************************/
+	/*Camera视角是否在右肩*/
+	UPROPERTY(Category = CameraSystem, VisibleAnywhere, BlueprintReadWrite)
 	bool bRightShoulder; 
+	
+	/*第三人称FOV*/
+	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadWrite)
+	float ThirdPerson_FOV = 90.0f; 
 
-	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float ThirdPerson_FOV = 90.0f; /*第三人称FOV*/
+	/*第一人称FOV*/
+	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadWrite)
+	float FirstPerson_FOV = 90.0f; 
+	/*****************************************************************************************************/
 
-	UPROPERTY(Category = CameraSystem, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float FirstPerson_FOV = 90.0f; /*第一人称FOV*/
+	/***********Character Input Bind Functions***********************************************************/
+	/*视角水平变化速度*/
+	UPROPERTY(Category = ViewInputRate, EditAnywhere, BlueprintReadWrite)
+	float LookRightRate = 1.25f;
 
-	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	float LookRightRate = 1.25;/*Controller水平变化速度，主要用于视线水平变化*/
+	/*视角垂直变化速度*/
+	UPROPERTY(Category = ViewInputRate, EditAnywhere, BlueprintReadWrite)
+	float LookUpRate = 1.25f;
 
-	UPROPERTY(Category = Camera, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	float LookUpRate = 1.25;/*Controller竖直变化速度，主要用于视线竖直变化*/
+private:
+	/*根据Controller的Yaw值进行对应方向向量的获取，X：Forward，Y：Right，Z：Up*/
+	const FVector GetControllerDirection(EAxis::Type InAxis);
 
-#pragma endregion
+	/*人物移动*/
+	void PlayerMovementInput(bool IsForward);
+
+	/*这一步只要是针对手柄进行摇杆对角线数值的修正*/
+	FVector2D FixDiagonalGamepadValus(float InX, float InY);
+
+public:
+	/*MoveForward轴映射绑定事件绑定函数*/
+	virtual void MoveForward(float Value);
+
+	/*MoveRight轴映射绑定函数*/
+	virtual void MoveRight(float Value);
+
+	/*Camera Input，Turn轴映射绑定函数，左右移动视角*/
+	virtual void Turn(float Value);
+
+	/*Camera Input，LookUp轴映射绑定函数，上下移动视角*/
+	virtual void LookUp(float Value);
+
+	/*JumpAction动作映射按键按下绑定函数*/
+	virtual void JumpAction();
+
+	/*SprintAction动作映射按键按下绑定函数，将DesiredGait设为Sprinting*/
+	virtual void SprintAction();
+
+	/*SprintAction按键松开绑定函数，将DesiredGait设为Running*/
+	virtual void StopSprintAction();
+
+	/*WalkAction动作映射按键按下绑定函数，Walking是行走速度最小的那种*/
+	virtual void WalkAction();
+
+	/*AimAction按键按下绑定函数*/
+	virtual void AimPressedAction();
+
+	/*AimAction按键松开绑定函数*/
+	virtual void AimReleasedAction();
+
+	/*StanceAction按键按下绑定函数*/
+	virtual void StanceAction();
+
+	/*CameraAction按键按下绑定函数*/
+	virtual void CameraPressedAction();
+
+	/*CameraAction按键松开绑定函数，暂时还未定义*/
+	//virtual void CameraReleasedAction();
+
+	/*开启Ragdoll系统*/
+	virtual void RagdollPressedAction();
+	/*******************************************************************************************/
+
+	/****************BeginPlayFunctions**********************************************************/
+private:
+	/*SkeletonMesh的AnimInstance*/
+	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UAnimInstance* MainAnimInstance;
+
+	/*MovementModel的DataTable*/
+	UPROPERTY(Category = MovementSystem, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	UDataTable* MovementModel_DT;
+
+	/*记录了角色不同Rotation模式下相关的速度信息以及过渡曲线*/
+	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FMovementSettings_State MovementData;
+
+	/*Character的期望Gait值，初始的默认DesiredGait为Running*/
+	UPROPERTY(Category = DesiredVariables, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	EStarve_Gait DesiredGait = EStarve_Gait::Running;
+
+	/*Character的期望RotationMode值，游戏开始的默认值LookingDirection*/
+	UPROPERTY(Category = DesiredVariables, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	EStarve_RotationMode DesiredRotationMode = EStarve_RotationMode::LookingDirection;
+
+
+	/*期望Stance，开始默认为Standing*/
+	UPROPERTY(Category = DesiredVariables, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	EStarve_Stance DesiredStance= EStarve_Stance::Standing;
+
+	//Character Begin Play初始化
+	void OnBeginPlay(); 
+
+	//初始化设置角色的枚举值
+	void SetMovementModel(); 
 
 protected:
-	#pragma region EssentialInformation
-	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		FVector Acceleration;/*加速度*/
+	/************Character Essential Information****************************************************************/
+	/*加速度*/
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FVector Acceleration;
 
+	/*前一时刻(上一帧)的速度，缓存值*/
 	UPROPERTY(Category = CachedVariables, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FVector PreviousVelocity;/*前一时刻的速度*/
+	FVector PreviousVelocity;
+
+	/*XY平面的速率*/
+	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Speed;
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		float Speed;/*XOY平面的速度*/
+	bool bIsMoving;/*判断是否正在移动*/
 
+	/*上一帧角色XY平面的的速度朝向*/
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		bool bIsMoving;/*判断是否正在移动*/
-
-	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		FRotator LastVelocityRotation;/*XY平面速度旋转*/
+	FRotator LastVelocityRotation;
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 		float MovementInputAmount;/*可以用来判断是否有输入，它是0-1之间的值*/
 
+	/*上一帧玩家运动输入的朝向*/
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-		FRotator LastMovementInputRotation;/*输入的旋转*/
+	FRotator LastMovementInputRotation;
 
 	UPROPERTY(Category = EssentialInformation, VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 		bool bHasMovementInput;/*判断是否有输入*/
@@ -88,37 +195,19 @@ protected:
 
 	UPROPERTY(Category = CachedVariables, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		float PreviousAimYaw;/*前一时刻控制器Yaw方向旋转的速度*/
-	#pragma endregion
-
+	/***************************************************************************************************************/
 
 	#pragma region AnimRelativeVariablies
-	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		UAnimInstance* MainAnimInstance;
 
-	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UDataTable* MovementModel_DT; //DataTable
-
+	/*角色朝向的目标值*/
+	UPROPERTY(Category = "RotationSystem", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator TargetRotation;
+	
 	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMovementSettings_State MovementData;
+	FMovementSettings CurrentMovementSettings;
 
-	/*下面三个参数是一开始的期望参数*/
-	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		EStarve_Gait DesiredGait = EStarve_Gait::Running;
-
-	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		EStarve_RotationMode DesiredRotationMode = EStarve_RotationMode::LookingDirection;
-
-	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		EStarve_Stance DesiredStance= EStarve_Stance::Standing;
-
-	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FRotator TargetRotation;
-
-	UPROPERTY(Category = MovementSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMovementSettings CurrentMovementSettings;
-
-	UPROPERTY(Category = RotationSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FRotator InAirRotation;//刚跳跃起来的角色朝向
+	UPROPERTY(Category = "RotationSystem", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FRotator InAirRotation;//刚跳跃起来的角色朝向
 
 	//在空中时的攀爬检测数据
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -182,64 +271,36 @@ protected:
 	#pragma endregion
 
 
-	#pragma region CharacterEnums
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "StateValues", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_MovementState MovementState;  //当前状态
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "StateValues",VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_MovementState PrevMovementState;//上一帧的状态
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "StateValues",VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_MovementAction MovementAction;
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "StateValues",VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_RotationMode RotationMode;
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "StateValues",VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_Gait Gait; //主要状态
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	EStarve_ViewMode ViewMode;
+	/*OverlayState，开始默认为Default*/
+	UPROPERTY(Category = "StateValues",VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_OverlayState OverlayState = EStarve_OverlayState::Default;
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	EStarve_OverlayState OverlayState;
+	/*Character的视角模式，开始默认是第三人称*/
+	UPROPERTY(Category = "StateValues",VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	EStarve_ViewMode ViewMode = EStarve_ViewMode::ThirdPerson;
 
-	UPROPERTY(Category = CharacterEnums,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = StateValues,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EStarve_Stance Stance;
-	#pragma endregion
 
 protected:
-	#pragma region CharacterMovementAndView
-	/**
-	* 根据Controller的Rotation获得方向
-	* 改写ALS系统的 GetControlledForward/RightVector
-	*/
-	const FVector GetControllerDirection(EAxis::Type InAxis);
+	
 
-	/*人物移动*/
-	void Starve_PlayerMovementInput(bool IsForward);
-
-	/*修正输入对角线的信息*/
-	FVector2D FixDiagonalGamepadValus(float InX, float InY);
-
-	void MoveForward(float Value);
-
-	void MoveRight(float Value);
-
-	void Turn(float Value);
-
-	void LookUp(float Value);
-
-	void JumpAction();//跳跃操作
-
-	void SprintAction();//冲刺
-
-	void StopSprintAction();//停止冲刺
-
-	void WalkAction();//冲刺
-
-	void OnCharacterMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0);
-	#pragma endregion
+	void OnCharacterMovementModeChanged(EMovementMode CurrentMovementMode);
 
 	#pragma region TickFunctions
 	/*计算角色运动所需要的数值*/
@@ -292,15 +353,27 @@ public:
 	#pragma endregion
 
 	#pragma region OnBeginPlayFunctions
-	void OnBeginPlay(); //BeginPlay初始化
-	void SetMovementModel(); //初始化设置角色的枚举值
-	void UpdateCharacterMovement(); //每帧更新角色在地面上的移动
-	EStarve_Gait GetAllowGait();//获得当前状态下允许的行走Gait
-	bool CanSprint(); //能否进行冲刺
-	EStarve_Gait GetActualGait(EStarve_Gait AllowedGait);//获得真正可以用的Gait
-	void UpdateDynamicMovementSettings(EStarve_Gait AllowedGait);//实时更新角色的Movement数据，就是将曲线中的信息应用到角色
-	FMovementSettings GetTargetMovementSettings();//获得对应旋转模式下MovementSettings里面的数据
-	float GetMappedSpeed();//获取曲线对应的速度
+
+	/*每帧更新角色在Grounded时的一些信息*/
+	void UpdateCharacterMovement();
+
+	/*根据Stance和RotationMode每帧调用获得允许的Gait*/
+	EStarve_Gait GetAllowGait();
+
+	/*能否进行冲刺的判断，对冲刺的行为进行限制*/
+	bool CanSprint();
+
+	/*获得真正可以用的Gait，主要是根据角色的Speed来决定当前的Gait，这样当角色处于减速状态时能有正确的Gait*/
+	EStarve_Gait GetActualGait(EStarve_Gait AllowedGait);
+
+	/*根据Gait实时更新角色的Movement数据，将结构体中的一些数据应用到角色*/
+	void UpdateDynamicMovementSettings(EStarve_Gait AllowedGait);
+
+	//获得Rotation模式下MovementSettings
+	FMovementSettings GetTargetMovementSettings();
+	
+	//将角色的Speed映射到0~3范围，0~1代表Walk，1~2代表Run，2~3代表Sprint
+	float GetMappedSpeed();
 	#pragma endregion
 
 	//RotationSystem
@@ -365,19 +438,12 @@ public:
 	/*攀爬更新角色位置和旋转*/
 	bool SetActorLocationAndRotationUpdateTarget(FVector NewLocation, FRotator NewRotator, bool bSweep, ETeleportType Teleport);
 
-	/*响应站立蹲伏的ActionInput函数*/
-	void StanceAction();
 
-	/*父类中响应Crouch的事件*/
-	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
-	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
 	/*响应蹲伏事件要改变的参数*/
 	void OnStanceChanged(EStarve_Stance NewStance);
 
-	/*相应事件着陆时*/
-	virtual void Landed(const FHitResult& Hit) override;
 
 	/*着落延迟相应函数*/
 	UFUNCTION()
@@ -405,17 +471,9 @@ public:
 	/*布娃娃系统结束*/
 	void RagdollEnd();
 
-	/*响应AimAction按下时间*/
-	void AimPressedAction();
 
-	/*响应AimAction松开事件*/
-	void AimReleasedAction();
 
-	/*响应AimAction按下时间*/
-	void CameraPressedAction();
 
-	/*响应AimAction松开事件*/
-	void CameraReleasedAction();
 
 	///*是否长按*/
 	//bool HoldInput(float WaitTime);
@@ -426,8 +484,7 @@ public:
 	///*HoldInputDelay*/
 	//void HoldInputDelay();
 
-	/*开启Ragdoll系统*/
-	void RagdollPressedAction();
+
 
 	/*获得Ragdoll起身的动画蒙太奇,子类重载*/
 	virtual UAnimMontage* GetGetUpAnimation(bool RagdollFaceUp);
