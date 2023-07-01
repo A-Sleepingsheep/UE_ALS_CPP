@@ -15,6 +15,7 @@
 #include "Libraries/Starve_MacroLibrary.h"
 #include "Interfaces/Starve_AnimationInterface.h"
 #include "Animation/AnimMontage.h"
+#include "Interfaces/Starve_ControllerInterface.h"
 
 #pragma region Override
 // Sets default values
@@ -118,7 +119,6 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 	}
 	else if(MovementState == EStarve_MovementState::InAir){
 		UpdateInAirRotation();
-
 		if (bHasMovementInput) {
 			//在空中有输入的话进行检测，看有没有可攀爬点
 			MantleCheck(FallingTraceSettings, EDrawDebugTrace::ForOneFrame);
@@ -128,13 +128,11 @@ void AStarveCharacterBase::Tick(float DeltaTime)
 		RagdollUpdate();
 	}
 
-	/*第二步，保存当前的某些信息*/
+	/*第二步，保存当前帧的某些值给下一帧使用*/
 	CacheValus();
 
-	//UKismetSystemLibrary::PrintString(this, FString::SanitizeFloat(Speed),true,false,FLinearColor::Blue,0.f);
-
-
-
+	/*3.绘制Debug线条*/
+	DrawDebugShapes();
 }
 
 // Called to bind functionality to input
@@ -195,6 +193,59 @@ FVector2D AStarveCharacterBase::FixDiagonalGamepadValus(float InX, float InY)
 	tempy = FMath::Clamp<float>(InX * tempy, -1.f, 1.f);
 
 	return FVector2D(tempy, tempx);
+}
+
+void AStarveCharacterBase::DrawDebugShapes()
+{
+	if (Cast<IStarve_ControllerInterface>(UGameplayStatics::GetPlayerController(this, 0))->I_ShowDebugShapes()) {
+		FVector start = GetActorLocation() - FVector(0, 0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+		FVector end;
+		FVector velocity = GetVelocity();
+		FLinearColor color;
+		if (velocity.Equals(FVector(0, 0, 0), 0.0001f)) {
+			end = LastVelocityRotation.Vector();
+			color = FLinearColor(0.25f, 0, 0.25f, 1);
+		}
+		else {
+			end = velocity;
+			color = FLinearColor(1, 0, 1, 1);
+		}
+		end = start + end.GetUnsafeNormal() * FMath::GetMappedRangeValueClamped(FVector2D(0, GetCharacterMovement()->MaxWalkSpeed), FVector2D(50.f, 75.f), velocity.Size());
+		//绘制Velocity方向的箭头
+		UKismetSystemLibrary::DrawDebugArrow(this, start, end, 60.f, color, 0, 5.f);
+
+		start = start + FVector(0, 0, 3.5f);
+		velocity = GetCharacterMovement()->GetCurrentAcceleration();
+		if (velocity.Equals(FVector(0, 0, 0), 0.0001f)) {
+			end = LastMovementInputRotation.Vector();
+			color = FLinearColor(0.25f, 0.125f, 0, 1);
+		}
+		else {
+			end = velocity;
+			color = FLinearColor(0.5f, 0.25f, 0, 1);
+		}
+		end = start + end.GetUnsafeNormal() * FMath::GetMappedRangeValueClamped(FVector2D(0, 1), FVector2D(50.f, 75.f), velocity.Size()/GetCharacterMovement()->GetMaxAcceleration());
+		//绘制MovementInput箭头
+		UKismetSystemLibrary::DrawDebugArrow(this, start, end, 50.f, color, 0, 3.f);
+
+		start = start + FVector(0, 0, 3.5f);
+		velocity = TargetRotation.Vector().GetUnsafeNormal();
+		end = start + velocity * 50.f;
+		color = FLinearColor(0, 0.333333f, 1, 1);
+		//绘制TargetRotation箭头
+		UKismetSystemLibrary::DrawDebugArrow(this, start, end, 50.f, color, 0, 3.f);
+
+		start = GetMesh()->GetSocketLocation(FName("FP_Camera"));
+		end = GetControlRotation().Vector().GetUnsafeNormal();
+		color = FLinearColor(0, 0.5f, 1, 1);
+		//绘制第一人称视角锥形
+		UKismetSystemLibrary::DrawDebugConeInDegrees(this, start, end, 100.f, 30.f, 30.f, 8,color, 0, 0.5f);
+
+		//绘制Character胶囊体
+		start = GetActorLocation();
+		color = FLinearColor(0, 0, 0, 1);
+		UKismetSystemLibrary::DrawDebugCapsule(this, start, GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), GetCapsuleComponent()->GetScaledCapsuleRadius(), GetActorRotation(), color, 0, 0.3f);
+	}
 }
 
 void AStarveCharacterBase::PlayerMovementInput(bool IsForward)
@@ -604,7 +655,6 @@ void AStarveCharacterBase::OnBeginPlay()
 	}
 
 	/*第五步，使用角色的开始Rotation初始化一些Rotation值*/
-	//
 	FRotator rotator = GetActorRotation();
 	TargetRotation = rotator;
 	LastVelocityRotation = rotator;
@@ -796,38 +846,40 @@ void AStarveCharacterBase::UpdateGroundedRotation()
 {
 	//MovementAction用于判断有没有处于蒙太奇状态下
 	if (MovementAction == EStarve_MovementAction::None) {
+		float rotationrate;
 		if (CanUpdateMovingRotation()) {
+			rotationrate = CalculateGroundedRotationRate();
 			//需要进行每帧更新旋转
 			switch (RotationMode)
 			{
 				case EStarve_RotationMode::VelocityDirection: {
-					SmoothCharacterRotation(FRotator(0.f, LastVelocityRotation.Yaw, 0.f), 800.f, CalculateGroundedRotationRate());
-					break;
+					SmoothCharacterRotation(FRotator(0.f, LastVelocityRotation.Yaw, 0.f), 800.f, rotationrate);
+					return;
 				}
 				case EStarve_RotationMode::LookingDirection: {
-					float rotationrate = CalculateGroundedRotationRate();
 					//冲刺状态下的yaw跟走路奔跑有所不同
 					float ratationyaw = (Gait == EStarve_Gait::Sprinting) ? LastVelocityRotation.Yaw : GetControlRotation().Yaw + GetAnimCurveValue(FName("YawOffset"));
 					SmoothCharacterRotation(FRotator(0, ratationyaw, 0), 500.f, rotationrate);
-					break;
+					return;
 				}
 				case EStarve_RotationMode::Aiming: {
 					SmoothCharacterRotation(FRotator(0.f, GetControlRotation().Yaw, 0.f), 1000.f, 20.f);
-					break;
+					return;
 				}
 			}
 		}
 		else {
-			//不需要进行每帧进行旋转更新
-			//如果是第一人陈或者第三人称是Aiming状态的话需要对Rotation进行限制
+			//这种情况是角色没有移动，但是Camera视角朝向变了，就需要应用原地转向动画
+			//如果是第一人陈或者第三人称但是在Aiming状态的话需要对Rotation进行限制
 			if (ViewMode == EStarve_ViewMode::FirstPerson || (ViewMode ==EStarve_ViewMode::ThirdPerson && RotationMode == EStarve_RotationMode::Aiming)) {
 				LimitRotation(-100.f, 100.f, 20.f);
 			}
-			float curvevalue_rotationamount = GetAnimCurveValue(FName("RotationAmount"));
-			if (FMath::Abs(curvevalue_rotationamount) > 0.001f) {
-				//(1.f / 30.f)跟动画的帧数有关，我们的动画是1秒30帧
-				float ry = curvevalue_rotationamount * (UGameplayStatics::GetWorldDeltaSeconds(this) / (1.f / 30.f));
-				AddActorWorldRotation(FRotator(0.f, ry, 0.f));
+			rotationrate = GetAnimCurveValue(FName("RotationAmount"));
+			if (FMath::Abs(rotationrate) > 0.001f) {
+				//应用TurnInPlace动画中的RotationAmount曲线，它定义了每帧应该旋转多少，同时使用动画的帧数应用到游戏帧数中
+				//(1.f / 30.f)是动画的帧数有关，我们的动画是1秒30帧
+				rotationrate = rotationrate * (UGameplayStatics::GetWorldDeltaSeconds(this) / (1.f / 30.f));
+				AddActorWorldRotation(FRotator(0.f, rotationrate, 0.f));
 				TargetRotation = GetActorRotation();
 			}
 		}
@@ -850,6 +902,7 @@ void AStarveCharacterBase::SmoothCharacterRotation(const FRotator& Target, float
 {
 	//常量差值获得目标旋转
 	float delta = UGameplayStatics::GetWorldDeltaSeconds(this);
+	//恒定速率插值TargetRotation
 	TargetRotation = FMath::RInterpConstantTo(TargetRotation, Target, delta, TargetInterpSpeed);
 	//设置角色转向目标旋转
 	FRotator newrotator = FMath::RInterpTo(GetActorRotation(), TargetRotation, delta, ActorInterpSpeed);
@@ -875,12 +928,11 @@ void AStarveCharacterBase::LimitRotation(float AimYawMin, float AimYawMax, float
 {
 	//根据Controller和Character的旋转Yaw差量
 	FRotator control_r = GetControlRotation();
-	FRotator char_r = GetActorRotation();
-	float delta_ry = UKismetMathLibrary::NormalizedDeltaRotator(control_r, char_r).Yaw;
+	float rotation_yaw = UKismetMathLibrary::NormalizedDeltaRotator(control_r, GetActorRotation()).Yaw;
 	//范围在范围内不进行限制，在范围外进行限制
-	if (!UKismetMathLibrary::InRange_FloatFloat(delta_ry, AimYawMin, AimYawMax, true, true)) {
-		float target_ry = delta_ry > 0.f ? control_r.Yaw + AimYawMin : control_r.Yaw + AimYawMax;
-		SmoothCharacterRotation(FRotator(0, target_ry, 0), 0.f, InterpSpeed);
+	if (!UKismetMathLibrary::InRange_FloatFloat(rotation_yaw, AimYawMin, AimYawMax, true, true)) {
+		rotation_yaw = rotation_yaw > 0.f ? control_r.Yaw + AimYawMin : control_r.Yaw + AimYawMax;
+		SmoothCharacterRotation(FRotator(0, rotation_yaw, 0), 0.f, InterpSpeed);
 	}
 }
 
@@ -905,7 +957,7 @@ void AStarveCharacterBase::UpdateInAirRotation()
 	if (RotationMode == EStarve_RotationMode::LookingDirection || RotationMode == EStarve_RotationMode::VelocityDirection) {
 		SmoothCharacterRotation(FRotator(0.f, InAirRotation.Yaw, 0.f), 0.f, 5.f);
 	}
-	else {
+	else if(RotationMode==EStarve_RotationMode::Aiming) {
 		SmoothCharacterRotation(FRotator(0.f, GetControlRotation().Yaw, 0.f), 0.f, 15.f);
 		InAirRotation = GetActorRotation();
 	}
@@ -914,27 +966,28 @@ void AStarveCharacterBase::UpdateInAirRotation()
 
 bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDrawDebugTrace::Type DebugTrace)
 {
-	/*1、根据运动方向进行射线检测找到角色不能行走的Location*/
-	float max_p_min = TraceSettings.MaxLedgeHeight + TraceSettings.MinLedgeHeight;
-	float max_s_min = TraceSettings.MaxLedgeHeight - TraceSettings.MinLedgeHeight;
+	/*1、根据运动方向向前后或左右将进行射线检测找到角色不能行走的Location*/
+	FVector direction = GetPlayerMovementInput(); 	//获得角色输入的方向
+	FVector basecapsulelocation = GetCapsuleBaseLocation(2.f); //获得角色Capsule底部的Location，有2cm的偏移微调
 
-	FVector movementdirection = GetPlayerMovementInput(); 	//获得角色运动方向的输入向量
-	FVector basecapsulelocation = GetCapsuleBaseLocation(2.f); //获得角色Capsule底部的Location，有2cm的偏移
-	//检测的开始点和结束点是根据运动方向确定
-	FVector start = basecapsulelocation + (-30.f * movementdirection) + FVector(0.f, 0.f, max_p_min / 2);
-	FVector end = start + movementdirection * TraceSettings.ReachDistance;
-	float height = max_s_min / 2 + 1.f;/*是下面胶囊体检测的半高以及后面的攀爬高度*/
+	/*下面的start点以及height值的原因，这样最后的表现效果就是进行检测的胶囊体检测最底部的高度就为MinLedgeHeight*/
+	/*最顶部高度就是MaxLedgeHeight*/
+	/*也就是允许攀爬最小高度和最大高度，低于或高于这个高度直接跳跃就行了，+1.f主要是加一点偏移量，避免边界条件*/
+	FVector start = basecapsulelocation + (-30.f * direction) + FVector(0.f, 0.f, (TraceSettings.MaxLedgeHeight + TraceSettings.MinLedgeHeight) / 2);
+	FVector end = start + direction * TraceSettings.ReachDistance;
+	float height = (TraceSettings.MaxLedgeHeight - TraceSettings.MinLedgeHeight) / 2 + 1.f;
 
+	EDrawDebugTrace::Type debugtrace = GetTraceDebugType(DebugTrace);
 	FHitResult hitresult;
-	//胶囊体检测
+	//第一次胶囊体检测检测的开始点和结束点在运动方向前后或左右先检测前面垂直的墙面，角色不能走是避免斜面的情况
 	UKismetSystemLibrary::CapsuleTraceSingle(this, start, end, TraceSettings.ForwardTraceRadius, height,
-		ETraceTypeQuery::TraceTypeQuery1, false, {}, DebugTrace, hitresult, true,
+		ETraceTypeQuery::TraceTypeQuery1, false, {}, debugtrace, hitresult, true,
 		FLinearColor::Black, FLinearColor::Blue, 1.0f);
 
-	FVector InitialTrace_ImpactPoint;/*实际碰撞到的点位置*/
-	FVector InitialTrace_Normal;/*碰撞点处的法线*/
+	FVector InitialTrace_ImpactPoint(0.f);/*实际碰撞到的点位置*/
+	FVector InitialTrace_Normal(0.f);/*碰撞点处的法线*/
 
-	//GetCharacterMovement()->IsWalkable(hitresult)判断碰撞检测的结构是否能过行走
+	//GetCharacterMovement()->IsWalkable(hitresult)判断碰撞检测返回的结果角色能否行走，判断这个条件主要是针对斜面
 	if (!GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit && !hitresult.bStartPenetrating) {
 		//不能进行行走但是有碰撞
 		InitialTrace_ImpactPoint = hitresult.ImpactPoint;
@@ -949,11 +1002,13 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 	/*2、如果上一步有碰撞，再进行一个Sphere检测，主要是返回检测到的物体最高点的高度*/
 	end = FVector(InitialTrace_ImpactPoint.X, InitialTrace_ImpactPoint.Y, basecapsulelocation.Z) + (-15.f * InitialTrace_Normal);
 	start = end + FVector(0.f, 0.f, TraceSettings.MaxLedgeHeight + TraceSettings.DownwardTracrRadius + 1.f);
+	
+	/*这次球形检测的主要目的是获得在墙面上的站立基础点，也就是角色脚步的大致位置*/
 	UKismetSystemLibrary::SphereTraceSingle(this, start, end, TraceSettings.DownwardTracrRadius, ETraceTypeQuery::TraceTypeQuery1,
-		false, {}, DebugTrace, hitresult, true, FLinearColor::Yellow, FLinearColor::Red, 1.f);
+		false, {}, debugtrace, hitresult, true, FLinearColor::Yellow, FLinearColor::Red, 1.f);
 
-	FVector DownTraceLocation;/*存放球形检测碰撞到的Location*/
-	UPrimitiveComponent* HitComponent = NULL;/*存放碰撞到的组件*/
+	FVector DownTraceLocation(0.f);/*存放球形检测碰撞到的Location*/
+	UPrimitiveComponent* HitComponent = nullptr;/*存放碰撞到的组件*/
 
 	if (GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit) {
 		DownTraceLocation = FVector(hitresult.Location.X, hitresult.Location.Y, hitresult.ImpactPoint.Z);
@@ -965,14 +1020,14 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 
 	/*3、通过CapsuleHasRoomCheck检测上一步碰撞到的点是否可以容纳角色胶囊体，如果可以获得攀爬后角色的目标位置以及攀爬高度*/
 	FTransform TargetTransform;/*到达点的变换*/
-	float MantleHeight;/*攀爬高度*/
 
 	FVector capsulelocationfrombase = GetCapsuleLocationFromBase(DownTraceLocation, 2.f);
-	if (CapsuleHasRoomCheck(GetCapsuleComponent(), capsulelocationfrombase, 0.f, 0.f, DebugTrace)) {
+	if (CapsuleHasRoomCheck(GetCapsuleComponent(), capsulelocationfrombase, 0.f, 0.f, debugtrace)) {
 		/*乘以(-1.f, -1.f, 0)是因为targetrotation会影响角色攀爬后的面朝向，InitialTrace_Normal的方向和角色的朝向在X和Y方向是相反的，角色最终面朝向的Z朝向由其自身决定，所以Z分量为0*/
 		FRotator targetrotation = (InitialTrace_Normal * FVector(-1.f, -1.f, 0)).ToOrientationRotator();
 		TargetTransform = FTransform(targetrotation, capsulelocationfrombase, FVector(1.f, 1.f, 1.f));
-		MantleHeight = (capsulelocationfrombase - GetActorLocation()).Z;
+		//攀爬高度
+		height = (capsulelocationfrombase - GetActorLocation()).Z;
 	}
 	else {
 		return false;
@@ -983,18 +1038,13 @@ bool AStarveCharacterBase::MantleCheck(FMantle_TraceSettings TraceSettings, EDra
 		MantleType = EMantleType::FallingCatch; /*在空中时属于FallingCatch*/
 	}
 	else {
-		if (MantleHeight > 125.f) {
-			MantleType = EMantleType::HighMantle; /*高攀爬*/
-		}
-		else {
-			MantleType = EMantleType::LowMantle; /*低攀爬*/
-		}
+		MantleType = height > 125.f ? EMantleType::HighMantle : EMantleType::LowMantle;
 	}
 
 	/*5.如果上面一切顺利，那么开始攀爬*/
 	/*传递的Component的Transform是世界空间坐标的*/
 	//FStarve_ComponentAndTransform MantleLedgeWS(TargetTransform, HitComponent);
-	MantleStart(MantleHeight, FStarve_ComponentAndTransform(TargetTransform, HitComponent), MantleType);
+	MantleStart(height, FStarve_ComponentAndTransform(TargetTransform, HitComponent), MantleType);
 	/*最后return true表示攀爬成功*/
 	return true;
 }
@@ -1024,25 +1074,35 @@ FVector AStarveCharacterBase::GetCapsuleLocationFromBase(const FVector& BaseLoca
 bool AStarveCharacterBase::CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const FVector& TargetLocation, float HeihtOffset, float RadiusOffset, EDrawDebugTrace::Type DegugType)
 {
 	//获取不带半球高度的胶囊体缩放半高
-	float startend_z = -1 * RadiusOffset + Capsule->GetScaledCapsuleHalfHeight_WithoutHemisphere() + HeihtOffset;
-	FVector start = TargetLocation + FVector(0.f, 0.f, startend_z);
-	FVector end = TargetLocation - FVector(0.f, 0.f, startend_z);
-	float radius = Capsule->GetScaledCapsuleRadius() + RadiusOffset;
+	float radius = -1 * RadiusOffset + Capsule->GetScaledCapsuleHalfHeight_WithoutHemisphere() + HeihtOffset;
+	FVector start = TargetLocation + FVector(0.f, 0.f, radius);
+	FVector end = TargetLocation - FVector(0.f, 0.f, radius);
+	radius = Capsule->GetScaledCapsuleRadius() + RadiusOffset;
 	FHitResult hitresult;
 
 	UKismetSystemLibrary::SphereTraceSingleByProfile(this, start, end, radius,
-		FName("Starve_Character"), false, {}, DegugType, hitresult, true, FLinearColor::Green, FLinearColor(0.9,0.3,1), 1.f);
+		FName("Starve_Character"), false, {}, DegugType, hitresult, true, FLinearColor(0.130706f,0.896269f,0.144582f,1), FLinearColor(0.932733f,0.29136f,1,1), 1.f);
 	
 	//如果没有碰撞到物体就代表可以该地方可以容纳角色
 	return !(hitresult.bBlockingHit || hitresult.bStartPenetrating);
+}
+
+EDrawDebugTrace::Type AStarveCharacterBase::GetTraceDebugType(EDrawDebugTrace::Type ShowTraceType)
+{
+	if (Cast<IStarve_ControllerInterface>(UGameplayStatics::GetPlayerController(this, 0))->I_ShowTraces()) {
+		return ShowTraceType;
+	}
+	return EDrawDebugTrace::None;
 }
 
 void AStarveCharacterBase::MantleStart(float MantleHeight,const FStarve_ComponentAndTransform& MantleLedgeWS, EMantleType RefMantleType)
 {
 	/*1、通过对应的MantleType获取对应的MantleAsset,并计算对应的MantleParams的参数*/
 	FMantle_Asset MantleAsset = GetMantleAsset(MantleType);
-	/*根据攀爬高度获得动画的播放速率和开始位置*/
+	/*根据攀爬高度获得动画的播放速率和动画开始起点*/
+	//该float值是播放速度
 	float playrate = FMath::GetMappedRangeValueClamped(FVector2D(MantleAsset.LowHeight, MantleAsset.HighHeight), FVector2D(MantleAsset.LowPlayRate, MantleAsset.HighPlayRate), MantleHeight);
+	//该float值是动画开始播放起点
 	float startposition = FMath::GetMappedRangeValueClamped(FVector2D(MantleAsset.LowHeight, MantleAsset.HighHeight), FVector2D(MantleAsset.LowStartPosition, MantleAsset.HighStartPosition), MantleHeight);
 
 	MantleParams.AnimMontage = MantleAsset.AnimMontage;
@@ -1052,18 +1112,18 @@ void AStarveCharacterBase::MantleStart(float MantleHeight,const FStarve_Componen
 	MantleParams.StartingOffset = MantleAsset.StartingOffset;
 	
 	/*2、获得攀爬点在局部坐标系的位置，目的在于如果物体在攀爬过程中发生了世界空间的移动，可以用这两个量反算出移动后的位置*/
-	MantleLedgeLS = UStarve_MacroLibrary::ML_ComponentWorldToLocal(MantleLedgeWS);
+	MantleLedgeLS = ComponentWorldToLocal(MantleLedgeWS);
 
 	/*3、将攀爬物体在世界空间下的Transform赋值给MantleTarget，并计算MantleTarget相对于角色Transform的偏移*/
 	MantleTarget = MantleLedgeWS.Transform;
-	MantleActualStartOffset = UStarve_MacroLibrary::ML_TransformSub(GetActorTransform(), MantleTarget);
+	MantleActualStartOffset = TransformSub(GetActorTransform(), MantleTarget);
 
 	/*4、根据上面的结果计算播放攀爬动画时角色要进行的偏移量。目的主要是如果直接进行过渡，一般会出现穿模问题，我们希望角色攀爬的运动是一条弧线*/
-	FVector rotationvector = MantleTarget.Rotator().Vector();
-	FVector scalerotationvector = rotationvector * MantleParams.StartingOffset.Y;/*进行Y轴缩放时因为Character类的前方是Y轴*/
-	FVector animatedlocation = MantleTarget.GetLocation() - FVector(scalerotationvector.X, scalerotationvector.Y, MantleParams.StartingOffset.Z);
+	FVector animatedlocation = MantleTarget.Rotator().Vector();
+	animatedlocation = animatedlocation * MantleParams.StartingOffset.Y;/*进行Y轴缩放时因为Character类的前方是Y轴*/
+	animatedlocation = MantleTarget.GetLocation() - FVector(animatedlocation.X, animatedlocation.Y, MantleParams.StartingOffset.Z);
 	FTransform animtedtransform = FTransform(MantleTarget.Rotator(), animatedlocation);
-	MantleAnimatedStartOffset = UStarve_MacroLibrary::ML_TransformSub(animtedtransform, MantleTarget);/*这个Transform是动画的偏移量*/
+	MantleAnimatedStartOffset = TransformSub(animtedtransform, MantleTarget);/*这个Transform是动画的偏移量*/
 
 	/*5、清除角色移动模式并将移动状态设置为Mantle*/
 	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
@@ -1071,10 +1131,9 @@ void AStarveCharacterBase::MantleStart(float MantleHeight,const FStarve_Componen
 
 	/*6、配置Mantle Timeline，使TimelineLength = MaxTime - MantleParams.StartingPosition，设置播放速率。然后开始播放时间线，在TimeLine中每帧更新角色的Transform*/
 	/*主要目的是为了动画与曲线同步*/
-	float MinTime = 0.0f;
-	float MaxTime = 0.0f;
-	MantleParams.PositionCorrectionCurve->GetTimeRange(MinTime, MaxTime);
-	MantleTimeline->SetTimelineLength(MaxTime - MantleParams.StartingPosition);
+	//这里使用了上面的两个float值来获得曲线对应的MinTime和MaxTime,优化后的代码（较少内存）
+	MantleParams.PositionCorrectionCurve->GetTimeRange(playrate, startposition);
+	MantleTimeline->SetTimelineLength(startposition - MantleParams.StartingPosition);
 	MantleTimeline->SetPlayRate(MantleParams.PlayRate);
 	MantleTimeline->PlayFromStart();
 
@@ -1146,15 +1205,16 @@ FMantle_Asset AStarveCharacterBase::GetMantleAsset(EMantleType mantletype)
 
 void AStarveCharacterBase::MantleUpdate(float BlendIn)
 {
-	/*1、根据攀爬物体的局部Transform每帧更新物体的世界Transform，这样在攀爬移动物体的时候可以确保角色跟着物体移动*/
-	MantleTarget = UStarve_MacroLibrary::ML_ComponentLocalToWorld(MantleLedgeLS).Transform;
+	/*1、根据攀爬物体的局部坐标系的Transform每帧更新物体的世界Transform，这样在攀爬移动物体的时候可以确保角色跟着物体移动*/
+	MantleTarget = ComponentLocalToWorld(MantleLedgeLS).Transform;
 
 	/*2、当前Timeline的播放位置+动画的偏移获得当前帧对应的曲线位置，然后从MentleParams的曲线中获得对应的值*/
 	float curvetime = MantleTimeline->GetPlaybackPosition() + MantleParams.StartingPosition;
 	FVector curvevalue = MantleParams.PositionCorrectionCurve->GetVectorValue(curvetime);
-	float positionalpha = curvevalue.X; /**/
-	float Y_Correctionalpha = curvevalue.Y;/*该值是进行XY平面的TransformOffset差值的Alpha值*/
-	float Z_Correctionalpha = curvevalue.Z;/*该值是进行Z方向的TransformOffset差值的Alpha值*/
+	//优化，下面直接使用CurveValue.x y z
+	//float positionalpha = curvevalue.X; /**/
+	//float Y_Correctionalpha = curvevalue.Y;/*该值是进行XY平面的TransformOffset差值的Alpha值*/
+	//float Z_Correctionalpha = curvevalue.Z;/*该值是进行Z方向的TransformOffset差值的Alpha值*/
 
 	/*3.通过各种差值混合获得当前角色的Transform*/
 	FVector temp_location_1 = MantleAnimatedStartOffset.GetLocation();
@@ -1162,36 +1222,30 @@ void AStarveCharacterBase::MantleUpdate(float BlendIn)
 
 	//使用 Y_Correctionalpha 混合获得水平方向以及旋转的偏移量,因为Z值用的是MantleActualStartOffset的Z值，所以它的值不变
 	FTransform temp_transform(MantleAnimatedStartOffset.Rotator(), FVector(temp_location_1.X, temp_location_1.Y, temp_location_2.Z));
-	FTransform transform_offset_xy_rotation = UKismetMathLibrary::TLerp(MantleActualStartOffset, temp_transform, Y_Correctionalpha);
+	FTransform transform_offset_xy_rotation = UKismetMathLibrary::TLerp(MantleActualStartOffset, temp_transform, curvevalue.Y);
 	
 	//使用 Z_Correctionalpha 混合获得垂直偏移量，Z值是MantleAnimatedStartOffset的Z值，XY值不变
 	temp_transform = FTransform(MantleActualStartOffset.Rotator(), FVector(temp_location_2.X, temp_location_2.Y, temp_location_1.Z));
-	FTransform transform_offset_z = UKismetMathLibrary::TLerp(MantleActualStartOffset, temp_transform, Z_Correctionalpha);
+	FTransform transform_offset_z = UKismetMathLibrary::TLerp(MantleActualStartOffset, temp_transform, curvevalue.Z);
 	
 	temp_location_1 = transform_offset_xy_rotation.GetLocation();
 	temp_location_2 = transform_offset_z.GetLocation();
 
 	/*获得当前角色的Transform*/
 	temp_transform = FTransform(transform_offset_xy_rotation.Rotator(), FVector(temp_location_1.X, temp_location_1.Y, temp_location_2.Z));
-	temp_transform = UStarve_MacroLibrary::ML_TransformAdd(MantleTarget, temp_transform);
+	temp_transform = TransformAdd(MantleTarget, temp_transform);
 	
 	/*该Lerp的A值相当于角色初始Transform，B值是攀爬的TargetTransform*/
-	FTransform character_current_transform = UKismetMathLibrary::TLerp(temp_transform, MantleTarget, positionalpha);
+	FTransform character_current_transform = UKismetMathLibrary::TLerp(temp_transform, MantleTarget, curvevalue.X);
 
 	/*下面一步是防止攀爬目标低于自身发生抖动现象，主要是Falling Catch的时候*/
-	temp_transform = UStarve_MacroLibrary::ML_TransformAdd(MantleTarget, MantleActualStartOffset);
+	temp_transform = TransformAdd(MantleTarget, MantleActualStartOffset);
 	character_current_transform = UKismetMathLibrary::TLerp(temp_transform, character_current_transform, BlendIn);
 
 	/*4、将 Actor 的位置和旋转设置为 character_current_transform*/
 	SetActorLocationAndRotationUpdateTarget(character_current_transform.GetLocation(), character_current_transform.Rotator(), false, ETeleportType::None);
 
 }
-
-//EDrawDebugTrace AStarveCharacterBase::GetTraceDebugType(EDrawDebugTrace ShowTraceType)
-//{
-//	UGameplayStatics::GetPlayerController();
-//	return EDrawDebugTrace();
-//}
 
 void AStarveCharacterBase::MantleEnd()
 {
@@ -1421,7 +1475,7 @@ void AStarveCharacterBase::RagdollUpdate()
 	float inspring = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 1000.f), FVector2D(0.f, 25000.f), LastRagdollVelocity.Size());
 	GetMesh()->SetAllMotorsAngularDriveParams(inspring, 0.f, 0.f, false);
 
-	/*3.是否启用重力*/
+	/*3.下落速度超多4000取消重力*/
 	GetMesh()->SetEnableGravity(LastRagdollVelocity.Z > -4000.f);
 
 	/*4.更新角色位置*/
@@ -1432,13 +1486,13 @@ void AStarveCharacterBase::RagdollUpdate()
 void AStarveCharacterBase::SetActorLocationDuringRagdoll()
 {
 	/*1.获得目标位置*/
-	FVector TargetRagdollLocation = GetMesh()->GetSocketLocation(FName("Pelvis"));
+	FVector TargetRagdollLocation = GetMesh()->GetSocketLocation(FName("pelvis"));
 
 	/*2.获取人物面朝向*/
-	FRotator socketrotation = GetMesh()->GetSocketRotation(FName("Pelvis"));
-	bRagdollFaceUp = socketrotation.Roll < 0.f;
-	float rotationyaw = bRagdollFaceUp ? socketrotation.Yaw - 180.f : socketrotation.Yaw;
-	FRotator TargetRagdollRotation(0.f, rotationyaw, 0.f);
+	FRotator TargetRagdollRotation = GetMesh()->GetSocketRotation(FName("pelvis"));
+	bRagdollFaceUp = TargetRagdollRotation.Roll < 0.f;
+	float temp_float = bRagdollFaceUp ? TargetRagdollRotation.Yaw - 180.f : TargetRagdollRotation.Yaw;
+	TargetRagdollRotation = FRotator(0.f, temp_float, 0.f);
 
 	/*3.射线检测*/
 	FVector end(TargetRagdollLocation.X, TargetRagdollLocation.Y, TargetRagdollLocation.Z - GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
@@ -1446,10 +1500,50 @@ void AStarveCharacterBase::SetActorLocationDuringRagdoll()
 	UKismetSystemLibrary::LineTraceSingle(this, TargetRagdollLocation, end, TraceTypeQuery1, false, {}, EDrawDebugTrace::None, hitresult, true);
 	bRagdollOnGround = hitresult.bBlockingHit;
 	if (bRagdollOnGround) {
-		float targetz = TargetRagdollLocation.Z + GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - FMath::Abs(hitresult.ImpactPoint.Z - hitresult.TraceStart.Z);
-		TargetRagdollLocation = FVector(TargetRagdollLocation.X, TargetRagdollLocation.Y, targetz);
+		temp_float = TargetRagdollLocation.Z + GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - FMath::Abs(hitresult.ImpactPoint.Z - hitresult.TraceStart.Z) + 2.f;
+		TargetRagdollLocation = FVector(TargetRagdollLocation.X, TargetRagdollLocation.Y, temp_float);
 	}
 	SetActorLocationAndRotationUpdateTarget(TargetRagdollLocation,TargetRagdollRotation,false, ETeleportType::None);
+}
+
+FStarve_ComponentAndTransform AStarveCharacterBase::ComponentWorldToLocal(FStarve_ComponentAndTransform WorldSpaceComp)
+{
+	//获得世界坐标变换矩阵
+	FTransform temp_transform = WorldSpaceComp.PrimitiveComponent->GetComponentToWorld();
+	//获得局部坐标
+	temp_transform = UKismetMathLibrary::InvertTransform(temp_transform);
+
+	temp_transform = UKismetMathLibrary::ComposeTransforms(WorldSpaceComp.Transform, temp_transform);
+
+	return FStarve_ComponentAndTransform(temp_transform, WorldSpaceComp.PrimitiveComponent);
+}
+
+FStarve_ComponentAndTransform AStarveCharacterBase::ComponentLocalToWorld(FStarve_ComponentAndTransform LocalSpaceComp)
+{
+	//获得世界坐标
+	FTransform temp_transform = LocalSpaceComp.PrimitiveComponent->GetComponentToWorld();
+
+	temp_transform = UKismetMathLibrary::ComposeTransforms(LocalSpaceComp.Transform, temp_transform);
+
+	return FStarve_ComponentAndTransform(temp_transform, LocalSpaceComp.PrimitiveComponent);
+}
+
+FTransform AStarveCharacterBase::TransformSub(const FTransform& A, const FTransform& B)
+{
+	FVector location = A.GetLocation() - B.GetLocation();
+	FRotator rotator = FRotator(A.Rotator().Pitch - B.Rotator().Pitch, A.Rotator().Yaw - B.Rotator().Yaw, A.Rotator().Roll - B.Rotator().Roll);
+	FVector scale = A.GetScale3D() - B.GetScale3D();
+
+	return FTransform(rotator, location, scale);
+}
+
+FTransform AStarveCharacterBase::TransformAdd(const FTransform& A, const FTransform& B)
+{
+	FVector location = A.GetLocation() + B.GetLocation();
+	FRotator rotator = FRotator(A.Rotator().Pitch + B.Rotator().Pitch, A.Rotator().Yaw + B.Rotator().Yaw, A.Rotator().Roll + B.Rotator().Roll);
+	FVector scale = A.GetScale3D() + B.GetScale3D();
+
+	return FTransform(rotator, location, scale);
 }
 
 //bool AStarveCharacterBase::HoldInput(float WaitTime)

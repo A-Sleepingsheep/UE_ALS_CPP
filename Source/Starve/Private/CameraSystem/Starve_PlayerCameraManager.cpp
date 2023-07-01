@@ -163,7 +163,7 @@ void AStarve_PlayerCameraManager::CustomCameraBehavior(float DeltaTime, FMinimal
 
 EDrawDebugTrace::Type AStarve_PlayerCameraManager::GetDebugTraceType(EDrawDebugTrace::Type DrawDebugTrace)
 {
-	if (Cast<IStarve_ControllerInterface>(GetOwningPlayerController())->I_ShowCameraManagerTraces()) {
+	if (Cast<IStarve_ControllerInterface>(GetOwningPlayerController())->I_ShowTraces()) {
 		return DrawDebugTrace;
 	}
 	else {

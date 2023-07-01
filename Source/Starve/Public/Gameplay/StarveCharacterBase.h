@@ -82,6 +82,9 @@ private:
 	/*这一步只要是针对手柄进行摇杆对角线数值的修正*/
 	FVector2D FixDiagonalGamepadValus(float InX, float InY);
 
+	/*Tick绘制Debug线条*/
+	void DrawDebugShapes();
+
 public:
 	/*MoveForward轴映射绑定事件绑定函数*/
 	virtual void MoveForward(float Value);
@@ -211,26 +214,27 @@ protected:
 
 	//在空中时的攀爬检测数据
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMantle_TraceSettings FallingTraceSettings = FMantle_TraceSettings(150.f,50.f,70.f,30.f,30.f);
+	FMantle_TraceSettings FallingTraceSettings = FMantle_TraceSettings(150.f,50.f,70.f,30.f,30.f);
 
 	//在地面上的攀爬检测数据
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMantle_TraceSettings GroundedTraceSettings = FMantle_TraceSettings(250.f,50.f,75.f,30.f,30.f);
+	FMantle_TraceSettings GroundedTraceSettings = FMantle_TraceSettings(250.f,50.f,75.f,30.f,30.f);
 
 
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		EMantleType MantleType;
+	EMantleType MantleType;
 
+	/*跟攀爬Montage相关的参数*/
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FMantle_Params MantleParams;
+	FMantle_Params MantleParams;
 
-	/*局部坐标下攀爬位置的变换*/
+	/*局部坐标下攀爬点对应的Primitive组件和Transform*/
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FStarve_ComponentAndTransform MantleLedgeLS;
+	FStarve_ComponentAndTransform MantleLedgeLS;
 
-	/*攀爬点的世界变化*/
+	/*攀爬点的World Transform*/
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTransform MantleTarget;
+	FTransform MantleTarget;
 
 	/*攀爬点的实际开始偏移量*/
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -238,7 +242,7 @@ protected:
 
 	/*攀爬动画的开始偏移量*/
 	UPROPERTY(Category = MantleSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTransform MantleAnimatedStartOffset;
+	FTransform MantleAnimatedStartOffset;
 
 	/*Mantle的时间轴*/
 	UPROPERTY(Category = MantleSystem,VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -257,15 +261,15 @@ protected:
 	int PressCount = 0;
 
 	/*Ragdoll是否在地面上*/
-	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = RagdollSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	bool bRagdollOnGround;
 	
 	/*Ragdoll是否起身*/
-	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = RagdollSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	bool bRagdollFaceUp;
 
 	/*Ragdoll前的速度*/
-	UPROPERTY(Category = Ragdoll, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = RagdollSystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	FVector LastRagdollVelocity;
 
 	#pragma endregion
@@ -383,12 +387,16 @@ public:
 	//判断是否更新运动旋转
 	bool CanUpdateMovingRotation();
 	
-	//根据摄像机的旋转平滑人物的旋转
+	//平滑过渡人物Rotation
 	void SmoothCharacterRotation(const FRotator& Target,float TargetInterpSpeed,float ActorInterpSpeed);
 
-	//计算人物在地面上的旋转速度
+	//通过MovementSettings中的RotationRate曲线跟AimYawRate结合计算人物在地面上的旋转速度
 	float CalculateGroundedRotationRate();
+
+
 	float GetAnimCurveValue(FName CurveName);//获得动画曲线值
+
+
 	void LimitRotation(float AimYawMin, float AimYawMax, float InterpSpeed);//限制Rotation
 
 	//跳跃事件,里面调用了在动画蓝图中实现的接口I_Jumped()，主要是为了实现动画蓝图与角色动作的同步
@@ -416,7 +424,7 @@ public:
 	/*检测是否有足够的空间容纳胶囊体，HeightOffset和RadiusOffset是用于微调的量*/
 	bool CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const FVector& TargetLocation, float HeihtOffset, float RadiusOffset, EDrawDebugTrace::Type DegugType);
 
-	//EDrawDebugTrace::Type GetTraceDebugType(EDrawDebugTrace::Type ShowTraceType);
+	EDrawDebugTrace::Type GetTraceDebugType(EDrawDebugTrace::Type ShowTraceType);
 	
 protected:
 
@@ -494,4 +502,16 @@ public:
 
 	/*更新Ragdoll时角色的位置*/
 	void SetActorLocationDuringRagdoll();
+
+	/*将组件的世界坐标需转变成局部坐标系*/
+	static FStarve_ComponentAndTransform ComponentWorldToLocal(FStarve_ComponentAndTransform WorldSpaceComp);
+	
+	/*将组件从局部坐标系转到世界坐标系*/
+	static FStarve_ComponentAndTransform ComponentLocalToWorld(FStarve_ComponentAndTransform LocalSpaceComp);
+
+	/*自定义变换减法,只是简单的的对应的值相减，主要是计算攀爬最终点跟起点的偏移*/
+	static FTransform TransformSub(const FTransform& A, const FTransform& B);
+
+	/*自定义变换加法,主要是对Rotator个分量对应进行相加*/
+	static FTransform TransformAdd(const FTransform& A, const FTransform& B);
 };

@@ -32,7 +32,7 @@ bool AStarvePC::I_DebugView()
 	return bDebugView;
 }
 
-bool AStarvePC::I_ShowCameraManagerTraces()
+bool AStarvePC::I_ShowTraces()
 {
 	return bShowTraces;
 }

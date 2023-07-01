@@ -62,7 +62,7 @@ public:
 public:
 	/****************Controller Interfaces *********************/
 	/*是否开启 PlayerCameraManager 的Character 与 Camera 之间球体检测绘制*/
-	virtual bool I_ShowCameraManagerTraces() override;
+	virtual bool I_ShowTraces() override;
 
 	/*是否开启CameraManager的关于Pivot轴点位置相关的绘制*/
 	virtual bool I_ShowDebugShapes() override;
