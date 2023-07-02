@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 #include "Enums/Starve_LocomotionEnum.h"
 #include "Structs/Starve_LocomotionStructs.h"
@@ -22,17 +23,17 @@ class STARVE_API UStarveCharacterAnimInstance : public UAnimInstance,public ISta
 public:
 	UStarveCharacterAnimInstance();
 	
-	virtual void NativeInitializeAnimation() override;
+	virtual void NativeBeginPlay() override;
 
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 
 private:
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		float DeltaTimeX;
+	float DeltaTimeX;
 
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		ACharacter* CharacterRef;
+	ACharacter* CharacterRef;
 
 	#pragma region CharacterEssentialValues
 	UPROPERTY(Category = CharacterInfo, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -88,18 +89,20 @@ private:
 	#pragma endregion
 
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	bool bShouldMove;
+	bool bShouldMove = false;
 
-	bool bDoOnce = false;/*用来判断当角色bShouldMove发生变动时，对用原来里面的DoWhile*/
+	bool bPreShouldMove = false;/*保存前一帧的bShouldMove*/
 
+	//FVelocityBlend是自己创建的结构体，进行速度混合，主要是FBLR，对应前后左右
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVelocityBlend VelocityBlend;//FVelocityBlend是自己创建的结构体，进行速度混合，主要是FBLR，对应前后左右
+	FVelocityBlend VelocityBlend;
 
-	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Anim_GroundedConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float VelocityBlendInterpSpeed = 12.f;//进行速度混合的速度
 
+	//对角线修正混合曲线
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCurveFloat* DiagonalScaleAmountCurve;//对角线修正需要的混合曲线
+	UCurveFloat* DiagonalScaleAmountCurve;
 
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float DiagonalScaleAmount;//对角线修正混合曲线处获得的值
@@ -113,38 +116,49 @@ private:
 	UPROPERTY(Category = AnimConfig, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float GroundedLeanInterpSpeed = 4.f;//LeanAmount差值速度
 
+	//walk 和 Run 的过渡值
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float WalkRunBlend = 0.f;//walk 和 Run 的过渡值
+	float WalkRunBlend = 0.f;
 
+	//站立情况下行走的步距过渡曲线
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCurveFloat* StrideBlend_N_Walk;//站立情况下行走的步距过渡曲线
+	UCurveFloat* StrideBlend_N_Walk;
 	
+	//站立情况下奔跑的步距过渡曲线
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCurveFloat* StrideBlend_N_Run;//站立情况下奔跑的步距过渡曲线
+	UCurveFloat* StrideBlend_N_Run;
 	
+	//蹲伏情况下行走的步距过渡曲线
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCurveFloat* StrideBlend_C_Walk;//蹲伏情况下行走的步距过渡曲线
+	UCurveFloat* StrideBlend_C_Walk;
 	
+	//步距混合值
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float StrideBlend = 0.f;//步距
+	float StrideBlend = 0.f;
 	
+	//站立动画播放速率
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float StandingPlayRate = 0.f;//站立动画播放速率
+	float StandingPlayRate = 0.f;
 
+	//下蹲动画播放速率
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float CrouchingPlayRate = 0.f;//下蹲动画播放速率
+	float CrouchingPlayRate = 0.f;
 
-	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AnimatedWalkSpeed = 150.f;//行走动画的速度
+	//行走动画的速度
+	UPROPERTY(Category = Anim_GroundedConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AnimatedWalkSpeed = 150.f;
 
-	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AnimatedRunSpeed = 350.f;//奔跑动画的速度
+	//奔跑动画的速度
+	UPROPERTY(Category = Anim_GroundedConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AnimatedRunSpeed = 350.f;
 
-	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AnimatedSprintSpeed = 600.f;//冲刺动画的速度
+	//冲刺动画的速度
+	UPROPERTY(Category = Anim_GroundedConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AnimatedSprintSpeed = 600.f;
 
-	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AnimatedCrouchSpeed = 150.f;//下蹲动画的速度
+	//下蹲动画的速度
+	UPROPERTY(Category = Anim_GroundedConfig, EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AnimatedCrouchSpeed = 150.f;
 
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EMovementDirecction MovementDirection;//运动方向（前、后、左、右）
@@ -155,17 +169,21 @@ private:
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UCurveVector* YawOffsetLR;//摄像机左右偏移曲线
 
+	//前向偏移
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float FYaw;//前向偏移
+	float FYaw;
 
+	//后向偏移
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float BYaw;//后向偏移
+	float BYaw;
 
+	//左向偏移
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float LYaw;//左向偏移
+	float LYaw;
 
+	//右向偏移
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float RYaw;//右向偏移
+	float RYaw;
 
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	EHipsDirection TrackedHipsDirection;//Hips朝向,通过动画通知修改
@@ -180,67 +198,73 @@ private:
 	UPROPERTY(Category = AnimConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float TriggerPivotLimitSpeed = 200.f;//Pivot,State中有Pivot动画通知的时候修改
 
+	//AimingRotation中间过渡的值
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator SmoothedAimingRotation;//旋转的中间过渡值
+	FRotator SmoothedAimingRotation;
 	
-	UPROPERTY(Category = AnimConfig, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = AimingConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float SmoothedAimingRotationInterpSpeed = 10.f;//Rotation差值速度
-
+	
+	//AimingAngle，X代表Yaw偏移，Y代表Pitch偏移
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector2D AimingAngle;//Aiming角度，X代表Yaw偏移，Y代表Pitch偏移
+	FVector2D AimingAngle;
 
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	FVector2D SmoothedAimingAngle;//中间的Aiming角度
 
-	UPROPERTY(Category = AnimConfig, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float TurnCheckMinAngle = 45.f;//原地转向的最小角度
+	//原地转向的最小角度
+	UPROPERTY(Category = "TurnInPlaceConfig", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float TurnCheckMinAngle = 45.f;
 
-	UPROPERTY(Category = AnimConfig, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AimYawRateLimit = 50.f;//原地转向的速度限制
+	//原地转向的速度限制
+	UPROPERTY(Category = "TurnInPlaceConfig", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AimYawRateLimit = 50.f;
 
 	UPROPERTY(Category = "TurnInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float ElapsedDelayTime;//转向开始前的延迟时间
 
-	UPROPERTY(Category = "TurnInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float MinAngleDelay = 0.75f;//最小角度转向前延迟时间
+	//原地转向最小角度前延迟时间
+	UPROPERTY(Category = "TurnInPlaceConfig", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MinAngleDelay = 0.75f;
 
-	UPROPERTY(Category = "TurnInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float MaxAngleDelay = 0.f;//最大角度转向前延迟时间
+	//原地转向最大角度延迟时间
+	UPROPERTY(Category = "TurnInPlaceConfig", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MaxAngleDelay = 0.f;
 
 	//站立左转90，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_L90;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset N_TurnIP_L90;
 
 	//站立右转90，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_R90;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset N_TurnIP_R90;
 
 	//站立左转180，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_L180;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset N_TurnIP_L180;
 
 	//站立右转180，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset N_TurnIP_R180;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset N_TurnIP_R180;
 
 	//蹲伏左转90，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_L90;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset CLF_TurnIP_L90;
 
 	//蹲伏右转90，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_R90;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset CLF_TurnIP_R90;
 
 	//蹲伏左转180，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_L180;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset CLF_TurnIP_L180;
 
 	//蹲伏右转180，在蓝图中进行赋值
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		FTurnInPlace_Asset CLF_TurnIP_R180;
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	FTurnInPlace_Asset CLF_TurnIP_R180;
 
 	//根据这个阈值判断是否旋转180还是90
-	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = "TurnInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float Turn180Threshold = 130.f;
 
 	UPROPERTY(Category = "TurnInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -252,26 +276,32 @@ private:
 	UPROPERTY(Category = Anim_Grounded, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	bool Rotate_R;//是否向右旋转
 
-	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float RotateMinThreshold = -50.f;//原地旋转最小阈值
+	//是否向左进行原地旋转最小阈值
+	UPROPERTY(Category = "RotateInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RotateMinThreshold = -50.f;
 	
-	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float RotateMaxThreshold = 50.f;//原地旋转最大阈值
-		
-	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AimYawRateMinRange = 90.f;//AimYawRate映射的最小值
+	//是否向右进行原地旋转最大阈值
+	UPROPERTY(Category = "RotateInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float RotateMaxThreshold = 50.f;
 	
-	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float AimYawRateMaxRange = 270.f;//AimYawRate映射的最大值
+	//AimYawRate映射的最小值
+	UPROPERTY(Category = "RotateInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AimYawRateMinRange = 90.f;
+	
+	//AimYawRate映射的最大值
+	UPROPERTY(Category = "RotateInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AimYawRateMaxRange = 270.f;
 
-	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float MinPlayRate = 1.15f;//AimYawRate映射到的最小值
+	//AimYawRate映射到原地旋转动画最小PlayRate
+	UPROPERTY(Category = "RotateInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MinPlayRate = 1.15f;
 
-	UPROPERTY(Category = "RotateInPlace", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float MaxPlayRate = 3.f;//AimYawRate映射到的最大值
+	//AimYawRate映射到原地旋转动画最大PlayRate
+	UPROPERTY(Category = "RotateInPlaceConfig", EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MaxPlayRate = 3.f;
 
 	UPROPERTY(Category = "RotateInPlace", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	float RotateRate;//Rotate的值
+	float RotateRate = 1.f;//Rotate的值
 
 	UPROPERTY(Category = Anim_InAir, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	bool Jumped;//是否跳跃
@@ -287,48 +317,48 @@ private:
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float FootLock_R_Alpha;
 
-	/*左脚锁定的Locatin值*/
+	/*左脚锁定的Location值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector FootLock_L_Location;
+	FVector FootLock_L_Location = FVector(0.f);
 
-	/*右脚锁定的Locatin值*/
+	/*右脚锁定的Location值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector FootLock_R_Location;
+	FVector FootLock_R_Location = FVector(0.f);
 
 	/*左脚锁定的Rotation值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator FootLock_L_Rotation;
+	FRotator FootLock_L_Rotation = FRotator(0.f);
 
 	/*右脚锁定的Rotation值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator FootLock_R_Rotation;
+	FRotator FootLock_R_Rotation = FRotator(0.f);
 
-	/*左脚步IK偏移后的Locatin值*/
+	/*左脚步IK的Locatin偏移值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector FootOffset_L_Location;
+	FVector FootOffset_L_Location = FVector(0.f);
 
-	/*右脚步IK偏移后的Locatin值*/
+	/*右脚步IK的Locatin偏移值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector FootOffset_R_Location;
+	FVector FootOffset_R_Location = FVector(0.f);
 
 	/*左脚IK的Rotation偏移值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator FootOffset_L_Rotation;
+	FRotator FootOffset_L_Rotation = FRotator(0.f);
 
 	/*右脚IK的Rotation偏移值*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FRotator FootOffset_R_Rotation;
+	FRotator FootOffset_R_Rotation = FRotator(0.f);
 
 	/*IK射线向上检测距离,配置变量*/
-	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = FootIKConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float IKTraceDistanceAboveFoot = 100.f;
 
 	/*IK射线向下检测距离,配置变量*/
-	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = FootIKConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float IKTraceDistanceBlowFoot = 45.f;
 
 	/*这里是相当于脚踝到脚面的距离,配置变量*/
-	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = FootIKConfig, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float FootHeight = 13.5f;
 
 	/*人物整体偏移的Alpha值*/
@@ -337,7 +367,7 @@ private:
 
 	/*身体的整体偏移*/
 	UPROPERTY(Category = FootIK, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	FVector PelvisOffset;
+	FVector PelvisOffset = FVector(0.f);
 
 	/*Transition的动画*/
 	UPROPERTY(Category = Ref, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -375,60 +405,71 @@ private:
 	UPROPERTY(Category = Anim_InAir, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float InAirLeanInterpSpeed = 4.f;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	float Enable_AnimOffset;
+	/*Alpha值，是否开启AimOffset*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	float Enable_AimOffset;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*站立权重*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float BasePose_N;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*CLF蹲伏权重*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float BasePose_CLF;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*Spine骨骼动画增量的Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Spine_Add;
 	
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*Hend骨骼动画增量的Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Head_Add;
 	
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*Arm_L左手臂骨骼动画增量的Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_L_Add;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*Arm_R右手臂骨骼动画增量的Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_R_Add;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*HandL左手混合Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Hand_L;
-
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	
+	/*HandR右手混合Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Hand_R;
 
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*是否开左手IK*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Enable_HandIK_L;
 	
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*是否开启右手IK*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Enable_HandIK_R;
 	
-	/*LocalSpace的左手臂*/
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*LocalSpace空间下的左手臂混合Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_L_LS;
 		
-	/*LocalSpace的右手臂*/
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*LocalSpace空间下右手臂混合的Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_R_LS;
 	
-	/*MeshSpace的左手臂*/
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*MeshSpace空间下的左手臂混合Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_L_MS;
 		
-	/*MeshSpace的右手臂*/
-	UPROPERTY(Category = LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	/*MeshSpace空间下右手臂混合的Alpha值*/
+	UPROPERTY(Category = Anim_LayerBlending, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	float Arm_R_MS;
 
-	/*MeshSpace的右手臂*/
-	UPROPERTY(Category = LayerBlending, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	/*Overlay的Override值*/
+	UPROPERTY(Category = Anim_LayerBlending, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	int OverlayOverrideState;
 
-	/*人物整体偏移的Alpha值*/
+	/*人物瞄准偏移的Alpha值，用该值来对Aiming状态下角色的Pitch值进行修改*/
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float AimSweepTime;
 	
@@ -440,8 +481,8 @@ private:
 	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float InputYawOffsetTime;
 
-	/*有输入时的yaw值偏移差值速度*/
-	UPROPERTY(Category = Anim_Aiming, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	/*Velocity模式下Character朝向Camera视角的插值速度*/
+	UPROPERTY(Category = AimingConfig, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float InputYawOffsetInterpSpeed;
 
 	
@@ -463,20 +504,39 @@ private:
 	void UpdateCharacterInfo(); /*更新角色信息*/
 	void UpdateMovementValues();/*更新角色运动的相关信息*/
 	void UpdateRotationValues();/*更新旋转模式相关信息*/
-	bool ShouldMoveCheck();/*角色是否应该移动判断*/
-	EDoWhtileReturn DoWhile(bool bSMove, bool bLastShouldMove);/*用俩判断shouldMove是否发生了改变，对应原来里面的DoWhile(True，false)宏*/
-	FVelocityBlend CalculateVelocityBlend();//计算FVelocityBlend的值，用于前后左右速度的混合
+	
+	/*角色是否在移动判断*/
+	bool ShouldMoveCheck();
+	
+	/*用俩判断shouldMove是否发生了改变，对应原来里面的DoWhile(True，false)宏*/
+	//EDoWhtileReturn DoWhile(bool bSMove, bool bLastShouldMove);
+	
+	//根据Velocity计算FVelocityBlend的值，用于前后左右速度的混合
+	FVelocityBlend CalculateVelocityBlend();
+	
 	//进行FVelocityBlend的差值处理(为了平滑过渡)
-	FVelocityBlend InterpVelocityBlend(FVelocityBlend Current, FVelocityBlend Target, float InterpSpeed, float DeltaTime);
-	float CalculateDiagonalScaleAmount();//对对角线上的数值进行映射，返回的值最终会运用在IK骨骼中
-	FVector CalculateRelativeAccelerationAmount();//返回人物局部坐标下角色的单位加速度向量
-	//LeanAmount差值获得平滑过渡效果
-	FLeanAmount InterpLeanAmount(FLeanAmount Current, FLeanAmount Target, float InterpSpeed, float DeltaTime);
-	float CalculateWalkRunBlend();//计算walk和run的混合度
-	float CalculateStrideBlend();//计算步距Alpha
+	FVelocityBlend InterpVelocityBlend(FVelocityBlend& Current, FVelocityBlend& Target, float InterpSpeed, float DeltaTime);
+	
+	//对对角线上的数值进行映射，返回的值最终会运用在IK骨骼中
+	float CalculateDiagonalScaleAmount();
+	
+	//返回人物局部坐标下角色的单位加速度向量
+	FVector CalculateRelativeAccelerationAmount();
+	
+	//LeanAmount插值
+	FLeanAmount InterpLeanAmount(FLeanAmount& Current, FLeanAmount& Target, float InterpSpeed, float DeltaTime);
+	
+	//计算walk和run的混合度
+	float CalculateWalkRunBlend();
+	
+	//计算步距Alpha
+	float CalculateStrideBlend();
+	
 	//获得角色动画曲线并进行钳制,代替 GetAnimCurveClamp 宏
 	float GetAnimCurveClamp(FName CurveName, float Bias, float ClampMin, float ClampMax);
+	
 	float CalculateStandingPlayRate();//计算站立动画播放速率
+	
 	float CalculateCrouchingPlayRate();//计算下蹲动画播放塑料厂
 
 	//RotationSystem
@@ -630,8 +690,6 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "Stop")
 		void AnimNotify_RollToIdle(UAnimNotify* Notify);
 
-	float GetAnimCurveCompact(FName CurveName);
-
 	UFUNCTION(BlueprintCallable, Category = "Reset_GroundedEntryState")
 		void AnimNotify_Reset_GroundedEntryState(UAnimNotify* Notify);
 
@@ -672,4 +730,6 @@ private:
 
 	/*每帧更新Ragdoll相关信息*/
 	void UpdateRagdollValues();
+
+	EDrawDebugTrace::Type GetDebugTraceType(EDrawDebugTrace::Type ShowTraceType);
 };

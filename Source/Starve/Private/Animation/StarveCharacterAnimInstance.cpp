@@ -8,11 +8,11 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveVector.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/CapsuleComponent.h"
 
 #include "Interfaces/Starve_CharacterInterface.h"
+#include "Interfaces/Starve_ControllerInterface.h"
 
 UStarveCharacterAnimInstance::UStarveCharacterAnimInstance() {
 	static ConstructorHelpers::FObjectFinder<UCurveFloat> cf(TEXT("CurveFloat'/Game/MyALS_CPP/Data/Curves/DiagonalScaleAmount.DiagonalScaleAmount'"));
@@ -72,7 +72,7 @@ UStarveCharacterAnimInstance::UStarveCharacterAnimInstance() {
 	}
 }
 
-void UStarveCharacterAnimInstance::NativeInitializeAnimation()
+void UStarveCharacterAnimInstance::NativeBeginPlay()
 {
 	APawn* pawn = TryGetPawnOwner();
 	if (IsValid(pawn)) {
@@ -83,80 +83,67 @@ void UStarveCharacterAnimInstance::NativeInitializeAnimation()
 void UStarveCharacterAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	this->DeltaTimeX = DeltaSeconds;
-	if (DeltaTimeX != 0.f) {
-		if (IsValid(CharacterRef)) {
-			/*每帧更新运动信息*/
-			UpdateCharacterInfo();
-			UpdateAimingValues();
-			UpdateLayerValues();
-			UpdateFootIK();
-			/*更新不同MovementState状态下的信息*/
-			switch (MovementState)
-			{
-				case EStarve_MovementState::Grounded:{
-					bShouldMove = ShouldMoveCheck();
-					EDoWhtileReturn dwr = DoWhile(bShouldMove, bDoOnce);
-					switch (dwr){
-						//角色一直处于Move状态
-						case EDoWhtileReturn::WhileTrue:{
-							UpdateMovementValues();
-							UpdateRotationValues();
-							break;
-						}
+	if (DeltaTimeX != 0.f && IsValid(CharacterRef)) {
+		/*每帧更新运动信息*/
+		UpdateCharacterInfo();
+		/*更新Aiming信息*/
+		UpdateAimingValues();
+		/*更新Layer骨骼混合相关信息，一般都是些Alpha值*/
+		UpdateLayerValues();
+		/*更新FootIK*/
+		UpdateFootIK();
+		/*更新不同MovementState状态下的信息*/
+		switch (MovementState)
+		{
+			case EStarve_MovementState::Grounded: {
+				bPreShouldMove = bShouldMove;
+				bShouldMove = ShouldMoveCheck();
+				//前一帧没有输入，这一帧有输入
+				if (bPreShouldMove == false && bShouldMove) {
+					ElapsedDelayTime = 0.f;
+					Rotate_L = false;
+					Rotate_R = false;
+				}
 
-						//角色一直处于非Move状态
-						case EDoWhtileReturn::WhileFalse: {
-							/*第一步，是否可以原地转头*/
-							if (CanRotateInPlace()) {
-								RotateInPlaceCheck();
-							}
-							else {
-								Rotate_L = false;
-								Rotate_R = false;
-							}
-
-
-							/*第二步，是否能够原地转向*/
-							if (CanTurnInPlace()) {
-								TurnInPlaceCheck();
-							}
-							else {
-								ElapsedDelayTime = 0.f;
-							}
-
-
-							/*第三步，是否动态过渡*/
-							if (CanDynamicTransition()) {
-								DynamicTransitionCheck();
-							}
-
-							break;
-						}
-
-						//角色从非move转到Move
-						case EDoWhtileReturn::ChangeToTrue: {
-							ElapsedDelayTime = 0.f;
-							Rotate_L = false;
-							Rotate_R = false;
-							break;
-						}
-
-						//角色从move转到非Move
-						case EDoWhtileReturn::ChangeToFalse:
-							break;
+				//bShouldMove为真，角色有运动输入
+				if (bShouldMove) {
+					UpdateMovementValues();
+					UpdateRotationValues();
+				}
+				else {
+					//角色没有运动输入
+					/*第一步，是否可以原地转头*/
+					if (CanRotateInPlace()) {
+						RotateInPlaceCheck();
 					}
-					bDoOnce = bShouldMove;
-					break;
-				}
-				case EStarve_MovementState::InAir: {
-					UpdateInAirValues();
-					break;
-				}
+					else {
+						Rotate_L = false;
+						Rotate_R = false;
+					}
 
-				case EStarve_MovementState::Ragdoll: {
-					UpdateRagdollValues();
-					break;
+					/*第二步，是否能够原地转向*/
+					if (CanTurnInPlace()) {
+						TurnInPlaceCheck();
+					}
+					else {
+						ElapsedDelayTime = 0.f;
+					}
+
+					/*第三步，是否动态过渡*/
+					if (CanDynamicTransition()) {
+						DynamicTransitionCheck();
+					}
 				}
+				return;
+			}
+			case EStarve_MovementState::InAir: {
+				UpdateInAirValues();
+				return;
+			}
+
+			case EStarve_MovementState::Ragdoll: {
+				UpdateRagdollValues();
+				return;
 			}
 		}
 	}
@@ -192,25 +179,22 @@ void UStarveCharacterAnimInstance::UpdateCharacterInfo()
 
 void UStarveCharacterAnimInstance::UpdateMovementValues()
 {
-	/*第一步*/
-	//利用差值过渡的方式获得并设置FVelocityBlend
+	/*1.利用插值设置FVelocityBlend*/
 	FVelocityBlend vb = CalculateVelocityBlend();
 	VelocityBlend = InterpVelocityBlend(VelocityBlend, vb, VelocityBlendInterpSpeed, DeltaTimeX);
 
-	/*第二步*/
-	//获得DiagonalScaleAmount，用于根骨骼位置修正
+	/*2.获得DiagonalScaleAmount，用于根骨骼位置修正*/
 	DiagonalScaleAmount = CalculateDiagonalScaleAmount();
 
-	/*第三步*/
+	/*3.计算RelativeAccelerationAmount并使用它进行LeanAmount插值*/
 	/*利用加速度获取偏移量，来实现速度变换的平滑过渡*/
 	//获得局部坐标系下的单位加速度向量
 	RelativeAccelerationAmount = CalculateRelativeAccelerationAmount();
-	//LeanAmount平滑过渡
+	//LeanAmount插值
 	FLeanAmount targetlean = FLeanAmount(RelativeAccelerationAmount.Y, RelativeAccelerationAmount.X);
 	LeanAmount = InterpLeanAmount(LeanAmount, targetlean, GroundedLeanInterpSpeed, DeltaTimeX);
 
-	/*第四步*/
-	//进行一些数据的更新计算
+	/*4.计算WalkRunBlend、StrideBlend、StandingPlayRate、CrouchingPlayRate*/
 	WalkRunBlend = CalculateWalkRunBlend();
 	StrideBlend = CalculateStrideBlend();
 	StandingPlayRate = CalculateStandingPlayRate();
@@ -220,21 +204,20 @@ void UStarveCharacterAnimInstance::UpdateMovementValues()
 
 void UStarveCharacterAnimInstance::UpdateRotationValues()
 {
-	/*第一步*/
-	//计算运动方向
+	/*第一步、计算运动方向*/
 	MovementDirection = CalculateMovementDirection();
 
 	/*第二步*/
 	//设置YawOffset。这些值会影响动画图中的“YawOffset”曲线，
 	//并用于偏移角色旋转以获得更自然的移动。曲线允许对偏移在每个移动方向上的行为进行精细控制。
-	FRotator velocityrotator = Velocity.ToOrientationRotator();
-	float deltarotatoryaw = UKismetMathLibrary::NormalizedDeltaRotator(velocityrotator, CharacterRef->GetControlRotation()).Yaw;
-	FVector yawoffsetfb = YawOffsetFB->GetVectorValue(deltarotatoryaw);
-	FVector yawoffsetlr = YawOffsetLR->GetVectorValue(deltarotatoryaw);
-	FYaw = yawoffsetfb.X;
-	BYaw = yawoffsetfb.Y;
-	LYaw = yawoffsetlr.X;
-	RYaw = yawoffsetlr.Y;
+	FRotator rotation_delta = UKismetMathLibrary::NormalizedDeltaRotator(Velocity.ToOrientationRotator(), CharacterRef->GetControlRotation());
+	FVector yaw_offset = YawOffsetFB->GetVectorValue(rotation_delta.Yaw);
+	FYaw = yaw_offset.X;
+	BYaw = yaw_offset.Y;
+	
+	yaw_offset = YawOffsetLR->GetVectorValue(rotation_delta.Yaw);
+	LYaw = yaw_offset.X;
+	RYaw = yaw_offset.Y;
 }
 
 bool UStarveCharacterAnimInstance::ShouldMoveCheck()
@@ -243,39 +226,39 @@ bool UStarveCharacterAnimInstance::ShouldMoveCheck()
 	return (bIsMoving && bHasMovementInput) || Speed > 150.f;
 }
 
-EDoWhtileReturn UStarveCharacterAnimInstance::DoWhile(bool bSMove, bool bLastShouldMove)
-{
-	EDoWhtileReturn dwr;
-	if (bSMove) {
-		dwr = (bLastShouldMove == bShouldMove) ? EDoWhtileReturn::WhileTrue : EDoWhtileReturn::ChangeToTrue;
-	}
-	else {
-		dwr = (bLastShouldMove == bShouldMove) ? EDoWhtileReturn::WhileFalse : EDoWhtileReturn::ChangeToFalse;
-	}
-	return dwr;
-}
+//EDoWhtileReturn UStarveCharacterAnimInstance::DoWhile(bool bSMove, bool bLastShouldMove)
+//{
+//	EDoWhtileReturn dwr;
+//	if (bSMove) {
+//		dwr = (bLastShouldMove == bShouldMove) ? EDoWhtileReturn::WhileTrue : EDoWhtileReturn::ChangeToTrue;
+//	}
+//	else {
+//		dwr = (bLastShouldMove == bShouldMove) ? EDoWhtileReturn::WhileFalse : EDoWhtileReturn::ChangeToFalse;
+//	}
+//	return dwr;
+//}
 
 FVelocityBlend UStarveCharacterAnimInstance::CalculateVelocityBlend()
 {
-	FVector norvelocity = UKismetMathLibrary::Normal(Velocity, 0.1f);
-	FRotator characterrotation = CharacterRef->GetActorRotation();
-	//不旋转向量，表示将人物的模型坐标用世界坐标表示出来，可以理解为将速度的处理放在自己模型的空间
-	FVector l_rela_velo_dir = UKismetMathLibrary::LessLess_VectorRotator(norvelocity, characterrotation);
+	//速度单位化保证在斜方向上速度的值为0.5
+	FVector velocity_direction = Velocity.GetSafeNormal(0.1f);
+	//UnrotateVector表示将速度向量放到Local坐标系中，表示将人物的模型坐标用世界坐标表示出来，可以理解为将速度的处理放在自己模型的空间
+	velocity_direction = CharacterRef->GetActorRotation().UnrotateVector(velocity_direction);
 	
-	//下面一步是为了判断当前速度方向在四向方向上的比例（因为是在地面上，所以忽略上下），方便后面六向混合
-	float sum = FMath::Abs(l_rela_velo_dir.X) + FMath::Abs(l_rela_velo_dir.Y) + FMath::Abs(l_rela_velo_dir.Z);
-	FVector rela_velo = l_rela_velo_dir / sum;
+	//这一步的目的还是为了限制velocity_direction的各值在0~1之间
+	float sum = FMath::Abs(velocity_direction.X) + FMath::Abs(velocity_direction.Y) + FMath::Abs(velocity_direction.Z);
+	velocity_direction = velocity_direction / sum;
 
 	FVelocityBlend vb;
-	vb.F = FMath::Clamp(rela_velo.X, 0.f, 1.f);
-	vb.B = FMath::Abs(FMath::Clamp(rela_velo.X, -1.f, 0.f));
-	vb.L = FMath::Abs(FMath::Clamp(rela_velo.Y, -1.f, 0.f));
-	vb.R = FMath::Clamp(rela_velo.Y, 0.f, 1.f);
+	vb.F = FMath::Clamp(velocity_direction.X, 0.f, 1.f);
+	vb.B = FMath::Abs(FMath::Clamp(velocity_direction.X, -1.f, 0.f));
+	vb.L = FMath::Abs(FMath::Clamp(velocity_direction.Y, -1.f, 0.f));
+	vb.R = FMath::Clamp(velocity_direction.Y, 0.f, 1.f);
 
 	return vb;
 }
 
-FVelocityBlend UStarveCharacterAnimInstance::InterpVelocityBlend(FVelocityBlend Current, FVelocityBlend Target, float InterpSpeed, float DeltaTime)
+FVelocityBlend UStarveCharacterAnimInstance::InterpVelocityBlend(FVelocityBlend& Current, FVelocityBlend& Target, float InterpSpeed, float DeltaTime)
 {
 	FVelocityBlend vb;
 
@@ -295,37 +278,20 @@ float UStarveCharacterAnimInstance::CalculateDiagonalScaleAmount()
 
 FVector UStarveCharacterAnimInstance::CalculateRelativeAccelerationAmount()
 {
-	////点乘(UE中是将 | 当做点乘的符号,可以直接写成 A | B ）
-	//float dot = FVector::DotProduct(Acceleration, Velocity);
-	//if (dot > 0) {
-	//	float maxacce = CharacterRef->GetCharacterMovement()->GetMaxAcceleration();
-	//	//将加速度的最大值限制在maxacce
-	//	FVector clamp_acce = Acceleration.GetClampedToMaxSize(maxacce);
-	//	//返回一个局部坐标的加速度向量，限制了最大值
-	//	return CharacterRef->GetActorRotation().UnrotateVector(clamp_acce / maxacce);
-	//}
-	//else {
-	//  //点乘为负代表角色应该在减速，我们获取这个制动速度
-	//	float maxacce = CharacterRef->GetCharacterMovement()->GetMaxBrakingDeceleration();
-	//	//将加速度的最大值限制在maxacce
-	//	FVector clamp_acce = Acceleration.GetClampedToMaxSize(maxacce);
-	//	//返回一个局部坐标的加速度向量，限制了最大值
-	//	return CharacterRef->GetActorRotation().UnrotateVector(clamp_acce / maxacce);
-	//}
-
 	//上面代码优化
-	float dot = FVector::DotProduct(Acceleration, Velocity);
+	//利用向量点乘判断是加速还是减速
+	float value = FVector::DotProduct(Acceleration, Velocity);
 	
 	UCharacterMovementComponent* cmc = CharacterRef->GetCharacterMovement();
-	float maxacce = dot >0 ? cmc->GetMaxAcceleration(): cmc->GetMaxBrakingDeceleration();
+	value = value >0 ? cmc->GetMaxAcceleration(): cmc->GetMaxBrakingDeceleration();
 	//将加速度的最大值限制在maxacce
-	FVector clamp_acce = Acceleration.GetClampedToMaxSize(maxacce);
+	FVector clamp_acce = Acceleration.GetClampedToMaxSize(value);
 	//返回一个局部坐标的加速度向量，限制了最大值
-	return CharacterRef->GetActorRotation().UnrotateVector(clamp_acce / maxacce);
+	return CharacterRef->GetActorRotation().UnrotateVector(clamp_acce / value);
 }
 
 
-FLeanAmount UStarveCharacterAnimInstance::InterpLeanAmount(FLeanAmount Current, FLeanAmount Target, float InterpSpeed, float DeltaTime)
+FLeanAmount UStarveCharacterAnimInstance::InterpLeanAmount(FLeanAmount& Current, FLeanAmount& Target, float InterpSpeed, float DeltaTime)
 {
 	FLeanAmount la;
 
@@ -344,61 +310,58 @@ float UStarveCharacterAnimInstance::CalculateWalkRunBlend()
 
 float UStarveCharacterAnimInstance::CalculateStrideBlend()
 {
-	float stride_blend_nw = StrideBlend_N_Walk->GetFloatValue(Speed);
-	float stride_blend_nr = StrideBlend_N_Run->GetFloatValue(Speed);
+	float curvevalue_1 = StrideBlend_N_Walk->GetFloatValue(Speed);
+	float curvevalue_2 = StrideBlend_N_Run->GetFloatValue(Speed);
 	float alpha = GetAnimCurveClamp(FName("Weight_Gait"), -1.0f, 0.0f, 1.0f);
 	//站立状态下walk到run的过渡值
-	float w_t_r = UKismetMathLibrary::Lerp(stride_blend_nw, stride_blend_nr, alpha);
+	curvevalue_1 = UKismetMathLibrary::Lerp(curvevalue_1, curvevalue_2, alpha);
 
-	float stride_blend_cw = StrideBlend_C_Walk->GetFloatValue(Speed);
+	curvevalue_2 = StrideBlend_C_Walk->GetFloatValue(Speed);
+	
 	//站立到crouch的混合
-	float alpha2 = GetCurveValue(FName("Basepose_CLF"));
-	float s_t_c = UKismetMathLibrary::Lerp(w_t_r, stride_blend_cw, alpha2);
+	alpha = GetCurveValue(FName("Basepose_CLF"));
+	alpha = UKismetMathLibrary::Lerp(curvevalue_1, curvevalue_2, alpha);
 
-	return s_t_c;
+	return alpha;
 }
 
 float UStarveCharacterAnimInstance::GetAnimCurveClamp(FName CurveName, float Bias, float ClampMin, float ClampMax)
 {
-	float curvevalue = this->GetCurveValue(CurveName);
-	float value = FMath::Clamp<float>(curvevalue + Bias, ClampMin, ClampMax);
+	float value = this->GetCurveValue(CurveName);
+	value = FMath::Clamp<float>(value + Bias, ClampMin, ClampMax);
 	return value;
 }
 
 float UStarveCharacterAnimInstance::CalculateStandingPlayRate()
 {	
 	//计算当前速度与动画速度的比值，并进行差值
-	float sw = Speed / AnimatedWalkSpeed;
-	float sr = Speed / AnimatedRunSpeed;
+	/*Walk->Run*/
 	float alpha = GetAnimCurveClamp(FName("Weight_Gait"), -1.f, 0.f, 1.f);
-	float w2r = UKismetMathLibrary::Lerp(sw, sr, alpha);
+	float value = UKismetMathLibrary::Lerp(Speed / AnimatedWalkSpeed, Speed / AnimatedRunSpeed, alpha);
 
-	float ss = Speed / AnimatedSprintSpeed;
-	float alpha2 = GetAnimCurveClamp(FName("Weight_Gait"), -2.f, 0.f, 1.f);
-	float w2r2s = UKismetMathLibrary::Lerp(w2r, ss, alpha2);
+	/*Walk/Run->Sprint*/
+	alpha = GetAnimCurveClamp(FName("Weight_Gait"), -2.f, 0.f, 1.f);
+	value = UKismetMathLibrary::Lerp(value, Speed / AnimatedSprintSpeed, alpha);
 	
 	//缩放步距大小，受人物本身步距大小和人物世界缩放影响
-	float worldscale = GetOwningComponent()->GetComponentScale().Z;
-	float stridescale = (w2r2s / StrideBlend) / worldscale;
-	float re = FMath::Clamp<float>(stridescale, 0.f, 3.f);
-	return re;
+	alpha = GetOwningComponent()->GetComponentScale().Z;
+	alpha = FMath::Clamp<float>((value / StrideBlend) / alpha, 0.f, 3.f);
+	return alpha;
 
 }
 
 float UStarveCharacterAnimInstance::CalculateCrouchingPlayRate()
 {
-	float cp = Speed / AnimatedCrouchSpeed;
+	float alpha = Speed / AnimatedCrouchSpeed;
 
 	//下蹲缩放步距大小，受人物本身步距大小和人物世界缩放影响
-	float stridescale = (cp / StrideBlend) / (GetOwningComponent()->K2_GetComponentScale().Z);
+	alpha = (alpha / StrideBlend) / (GetOwningComponent()->GetComponentScale().Z);
 
-	return FMath::Clamp<float>(stridescale, 0.f, 2.f);
+	return FMath::Clamp<float>(alpha, 0.f, 2.f);
 }
 
 EMovementDirecction UStarveCharacterAnimInstance::CalculateMovementDirection()
 {
-	EMovementDirecction md = EMovementDirecction::Forward;
-
 	switch (Gait)
 	{
 		case EStarve_Gait::Walking:
@@ -406,57 +369,53 @@ EMovementDirecction UStarveCharacterAnimInstance::CalculateMovementDirection()
 			switch (RotationMode)
 			{
 				case EStarve_RotationMode::VelocityDirection: {
-					md = EMovementDirecction::Forward;
-					break;
+					return EMovementDirecction::Forward;
+					
 				}
 				case EStarve_RotationMode::LookingDirection:
 				case EStarve_RotationMode::Aiming: {
-					FRotator velocityrotation = Velocity.ToOrientationRotator();
-					//计算旋转差量
-					float angle = UKismetMathLibrary::NormalizedDeltaRotator(velocityrotation, AimingRatation).Yaw;
-					md = CalculateQuadrant(MovementDirection, 70.f, -70.f, 110.f, -110.f, 5.f, angle);
-					break;
+					//通过Rotation差量计算MovementDirection
+					float angle = UKismetMathLibrary::NormalizedDeltaRotator(Velocity.ToOrientationRotator(), AimingRatation).Yaw;
+					return CalculateQuadrant(MovementDirection, 70.f, -70.f, 110.f, -110.f, 5.f, angle);
 				}
 			}
-			break;
 		}
 		case EStarve_Gait::Sprinting: {
-			md = EMovementDirecction::Forward;
-			break;
+			return EMovementDirecction::Forward;
+			
 		}
 	}
 
-	return md;
+	return EMovementDirecction::Forward;
 }
 
 
 EMovementDirecction UStarveCharacterAnimInstance::CalculateQuadrant(EMovementDirecction CurrentMD, float FR_Threshold, float FL_Threshold, float BR_Threshold, float BL_Threshold, float Buffer, float Angle)
 {
-	EMovementDirecction md;
 	//前或后
-	bool fob = CurrentMD != EMovementDirecction::Forward || CurrentMD != EMovementDirecction::Backward;
+	bool direction = CurrentMD != EMovementDirecction::Forward || CurrentMD != EMovementDirecction::Backward;
 	//是否在前边 FL~FR 范围内
-	bool b1 = AngleInRange(Angle, FL_Threshold, FR_Threshold, Buffer, fob);
-	if (b1) {
-		md = EMovementDirecction::Forward;
+	bool in_range = AngleInRange(Angle, FL_Threshold, FR_Threshold, Buffer, direction);
+	if (in_range) {
+		return EMovementDirecction::Forward;
 	}
 	else {
 		//左或右
-		bool lor = CurrentMD != EMovementDirecction::Left || CurrentMD != EMovementDirecction::Right;
+		direction = CurrentMD != EMovementDirecction::Left || CurrentMD != EMovementDirecction::Right;
 		//是否在右边 FR~BR 范围内
-		bool b2 = AngleInRange(Angle, FR_Threshold, BR_Threshold, Buffer, lor);
-		if (b2) {
-			md = EMovementDirecction::Right;
+		in_range = AngleInRange(Angle, FR_Threshold, BR_Threshold, Buffer, direction);
+		if (in_range) {
+			return EMovementDirecction::Right;
 		}
 		else {
 			//是否在左边 BL~FL 范围内，不在前三者代表后面
-			bool b3 = AngleInRange(Angle, BL_Threshold, FL_Threshold, Buffer, lor);
-			md = b3 ? EMovementDirecction::Left : EMovementDirecction::Backward;
+			in_range = AngleInRange(Angle, BL_Threshold, FL_Threshold, Buffer, direction);
+			return in_range ? EMovementDirecction::Left : EMovementDirecction::Backward;
 		}
 	}
 
 	//上面的主要目的是将前后左右360分成四份进行判断
-	return md;
+	return EMovementDirecction::Forward;
 }
 
 bool UStarveCharacterAnimInstance::AngleInRange(float Angle, float MinAngle, float MaxAngle, float Buffer, bool bIncreaseBuffer)
@@ -521,7 +480,7 @@ bool UStarveCharacterAnimInstance::CanRotateInPlace()
 
 bool UStarveCharacterAnimInstance::CanTurnInPlace()
 {
-	return RotationMode == EStarve_RotationMode::LookingDirection && ViewMode == EStarve_ViewMode::ThirdPerson && GetCurveValue(FName("Enable_Transition")) > 0.99;
+	return RotationMode == EStarve_RotationMode::LookingDirection && ViewMode == EStarve_ViewMode::ThirdPerson && GetCurveValue(FName("Enable_Transition")) > 0.99f;
 }
 
 bool UStarveCharacterAnimInstance::CanDynamicTransition()
@@ -551,30 +510,33 @@ void UStarveCharacterAnimInstance::UpdateAimingValues()
 	/*1、获得旋转中间过渡值*/
 	SmoothedAimingRotation = FMath::RInterpTo(SmoothedAimingRotation, AimingRatation, DeltaTimeX, SmoothedAimingRotationInterpSpeed);
 
-	/*2、计算人物Aimin状态下的 Angle 以及中间过渡的 SmoothedAngle*/
-	FRotator char_r = CharacterRef->GetActorRotation();
-	FRotator delta_r = UKismetMathLibrary::NormalizedDeltaRotator(AimingRatation, char_r);
-	AimingAngle.X = delta_r.Yaw;
-	AimingAngle.Y = delta_r.Pitch;
+	/*2、通过Actor的Rotation和AimingRotation计算AimAngle以及中间过渡的AimAngle*/
+	FRotator actor_rotation = CharacterRef->GetActorRotation();
+	FRotator delta_rotation = UKismetMathLibrary::NormalizedDeltaRotator(AimingRatation, actor_rotation);
+	AimingAngle.X = delta_rotation.Yaw;
+	AimingAngle.Y = delta_rotation.Pitch;
 
-	FRotator delta_sr = UKismetMathLibrary::NormalizedDeltaRotator(SmoothedAimingRotation, char_r);
-	SmoothedAimingAngle.X = delta_sr.Yaw;
-	SmoothedAimingAngle.Y = delta_sr.Pitch;
+	delta_rotation = UKismetMathLibrary::NormalizedDeltaRotator(SmoothedAimingRotation, actor_rotation);
+	SmoothedAimingAngle.X = delta_rotation.Yaw;
+	SmoothedAimingAngle.Y = delta_rotation.Pitch;
 
-	/*3、Clamp the Aiming Pitch Angle to a range of 1 to 0 for use in the vertical aim sweeps.*/
+	/*3、Looking模式个Aiming模式下通过AimAngle即AimingRotation的Pitch限制AimSweepTime*/
+	/*同时使用AimingAngle的X值即Yaw值除以Spine + Pelvis骨骼的总数获得面向摄像机朝向需要旋转的Yaw值*/
 	if (RotationMode == EStarve_RotationMode::LookingDirection || RotationMode == EStarve_RotationMode::Aiming) {
 		AimSweepTime = FMath::GetMappedRangeValueClamped(FVector2D(-90.f, 90.f), FVector2D(1.f, 0.f), AimingAngle.Y);
 		SpineRotation = FRotator(0.f, AimingAngle.X / 4.f, 0.f);
 	}
 	else if(RotationMode == EStarve_RotationMode::VelocityDirection)
 	{
+	/*4、速度模式下获得MovementInput和Actor之间的Rotation差量，并将其映射到0~1之间，该值用于*/
 		if (bHasMovementInput) {
-			float deltayaw = UKismetMathLibrary::NormalizedDeltaRotator(MovementInput.ToOrientationRotator(), CharacterRef->GetActorRotation()).Yaw;
-			float mapyaw = FMath::GetMappedRangeValueClamped(FVector2D(-180.f, 180.f), FVector2D(0.f, 1.f), deltayaw);
+			delta_rotation = UKismetMathLibrary::NormalizedDeltaRotator(MovementInput.ToOrientationRotator(), actor_rotation);
+			float mapyaw = FMath::GetMappedRangeValueClamped(FVector2D(-180.f, 180.f), FVector2D(0.f, 1.f), delta_rotation.Yaw);
 			InputYawOffsetTime = FMath::FInterpTo(InputYawOffsetTime, mapyaw, DeltaTimeX, InputYawOffsetInterpSpeed);
 		}
 	}
 
+	/*5.将SmoothAimingAngle对应的X（Yaw）值分别限制成3个值，这3个值将用于AimOffset，*/
 	LeftYawTime = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 180.f), FVector2D(0.5f, 0.f), FMath::Abs(SmoothedAimingAngle.X));
 	RightYawTime = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 180.f), FVector2D(0.5f, 1.f), FMath::Abs(SmoothedAimingAngle.X));
 	ForwardYawTime = FMath::GetMappedRangeValueClamped(FVector2D(-180.f, 180.f), FVector2D(0.f, 1.f), SmoothedAimingAngle.X);
@@ -658,30 +620,30 @@ void UStarveCharacterAnimInstance::I_JumpedDelayFinish()
 
 void UStarveCharacterAnimInstance::UpdateLayerValues()
 {
-	/*1.*/
-	Enable_AnimOffset = FMath::Lerp(1.f, 0.f, GetAnimCurveCompact(FName("Mask_AimOffset")));
+	/*1.通过获取Mask_AimOffset曲线值来获取AimOffset权重值*/
+	Enable_AimOffset = FMath::Lerp(1.f, 0.f, GetCurveValue(FName("Mask_AimOffset")));
 
-	/*2.*/
-	BasePose_N = GetAnimCurveCompact(FName("Basepose_N"));
-	BasePose_CLF = GetAnimCurveCompact(FName("Basepose_CLF"));
+	/*2.获得基础姿势权重*/
+	BasePose_N = GetCurveValue(FName("Basepose_N"));
+	BasePose_CLF = GetCurveValue(FName("Basepose_CLF"));
 
-	/*3.*/
-	Spine_Add =GetAnimCurveCompact(FName("Layering_Spine_Add"));
-	Head_Add =  GetAnimCurveCompact(FName("Layering_Head_Add"));
-	Arm_L_Add =  GetAnimCurveCompact(FName("Layering_Arm_L_Add"));
-	Arm_R_Add =  GetAnimCurveCompact(FName("Layering_Arm_R_Add"));
+	/*3.获取身体各部位的Additive Amount*/
+	Spine_Add = GetCurveValue(FName("Layering_Spine_Add"));
+	Head_Add = GetCurveValue(FName("Layering_Head_Add"));
+	Arm_L_Add = GetCurveValue(FName("Layering_Arm_L_Add"));
+	Arm_R_Add = GetCurveValue(FName("Layering_Arm_R_Add"));
 
-	/*4.*/
-	Hand_L = GetAnimCurveCompact(FName("Layering_Hand_L"));
-	Hand_R = GetAnimCurveCompact(FName("Layering_Hand_R"));
+	/*4.获得手部Override权重*/
+	Hand_L = GetCurveValue(FName("Layering_Hand_L"));
+	Hand_R = GetCurveValue(FName("Layering_Hand_R"));
 
-	/*5.*/
-	Enable_HandIK_L = FMath::Lerp(1.f, GetAnimCurveCompact(FName("Enable_HandIK_L")), GetAnimCurveCompact(FName("Layering_Arm_L")));
-	Enable_HandIK_R = FMath::Lerp(1.f, GetAnimCurveCompact(FName("Enable_HandIK_R")), GetAnimCurveCompact(FName("Layering_Arm_R")));
+	/*5.通过Enable_HandIK_L和Layering_Arm_L获得是否开启手部IK*/
+	Enable_HandIK_L = FMath::Lerp(0.f, GetCurveValue(FName("Enable_HandIK_L")), GetCurveValue(FName("Layering_Arm_L")));
+	Enable_HandIK_R = FMath::Lerp(0.f, GetCurveValue(FName("Enable_HandIK_R")), GetCurveValue(FName("Layering_Arm_R")));
 
-	/*6.*/
-	Arm_L_LS = GetAnimCurveCompact(FName("Layering_Arm_L_LS"));
-	Arm_R_LS = GetAnimCurveCompact(FName("Layering_Arm_R_LS"));
+	/*6.设置手部骨骼是在LocalSpace还是在MeshSpace中混合，除非LocalSpace的权值为1，不然MeshSpace的权值始终为1，即默认是在MeshSpace下混合手臂的*/
+	Arm_L_LS = GetCurveValue(FName("Layering_Arm_L_LS"));
+	Arm_R_LS = GetCurveValue(FName("Layering_Arm_R_LS"));
 	Arm_L_MS = (float)(1 - FMath::FloorToInt(Arm_L_LS));
 	Arm_R_MS = (float)(1- FMath::FloorToInt(Arm_R_LS));
 }
@@ -709,17 +671,17 @@ void UStarveCharacterAnimInstance::UpdateFootIK()
 void UStarveCharacterAnimInstance::SetFootLocking(FName EnableFootIKCurve, FName FootLockCuve, FName FootIKBone, float& CurrentFootLockAlpha, FVector& CurrentFootLockLocation, FRotator& CurrentFootLockRotation)
 {
 	/*先进行是否进行脚步锁定的判断*/
-	float enablefootik = GetCurveValue(EnableFootIKCurve);
-	if (enablefootik > 0.f) {
+	float curvevalue = GetCurveValue(EnableFootIKCurve);
+	if (curvevalue > 0.f) {
 		/*1、获得脚步锁定的曲线值*/
-		float footlockcurvevalue = GetCurveValue(FootLockCuve);
+		curvevalue = GetCurveValue(FootLockCuve);
 
-		/*2、给传入的引用进行赋值*/
-		if (footlockcurvevalue >= 0.99f || footlockcurvevalue < CurrentFootLockAlpha) {
-			CurrentFootLockAlpha = footlockcurvevalue;
+		/*2、只有当FootLock的曲线值等于1或者它小于当前的FootLock值时才更新FootLock的Alpha值，目的是使得FootLock只能混合退出，而不能混合进入*/
+		if (curvevalue >= 0.99f || curvevalue < CurrentFootLockAlpha) {
+			CurrentFootLockAlpha = curvevalue;
 		}
 
-		/*3、使用组件坐标空间给引用的Location和Rotation赋值*/
+		/*3、脚步锁定曲线值等于1，使用组件坐空间给FootLock的Location和Rotation赋值*/
 		if (CurrentFootLockAlpha >= 0.99f) {
 			/*获取组件坐标系下的Transform*/
 			FTransform rtscomponent = GetOwningComponent()->GetSocketTransform(FootIKBone,ERelativeTransformSpace::RTS_Component);
@@ -727,7 +689,7 @@ void UStarveCharacterAnimInstance::SetFootLocking(FName EnableFootIKCurve, FName
 			CurrentFootLockRotation = rtscomponent.Rotator();
 		}
 
-		/*4、进行脚步锁定的处理*/
+		/*4、如果脚步锁定的值大于0，则当胶囊体移动时更新FootLockOffset以保持脚步固定*/
 		if (CurrentFootLockAlpha > 0.f) {
 			SetFootLockOffsets(CurrentFootLockLocation, CurrentFootLockRotation);
 		}
@@ -736,65 +698,68 @@ void UStarveCharacterAnimInstance::SetFootLocking(FName EnableFootIKCurve, FName
 
 void UStarveCharacterAnimInstance::SetFootLockOffsets(FVector& LocalLocation, FRotator& LocalRotation)
 {
-	/*1.获取当前帧跟上一帧的旋转差量*/
+	/*1.获取当前帧跟上一帧的Rotation差量,确定脚保持在地面上应该要旋转多少度*/
 	UCharacterMovementComponent* charactermovecomp = CharacterRef->GetCharacterMovement();
-	FRotator rotationdifferent;
+	FRotator rotationdifferent(0.f);
 	if (charactermovecomp->IsMovingOnGround()) {
-		FRotator lastrotation = charactermovecomp->GetLastUpdateRotation();
-		rotationdifferent = UKismetMathLibrary::NormalizedDeltaRotator(CharacterRef->GetActorRotation(), lastrotation);
+		rotationdifferent = charactermovecomp->GetLastUpdateRotation();
+		rotationdifferent = UKismetMathLibrary::NormalizedDeltaRotator(CharacterRef->GetActorRotation(), rotationdifferent);
 	}
 
-	/*2.获取当前帧Location与上一帧相比的差量*/
+	/*2.获取当前帧Location与上一帧相比的差量,获得保证脚保持在原地的Location偏移量*/
 	//Velocity * UGameplayStatics::GetWorldDeltaSeconds(this)是表示速度方向一帧前进的距离
 	FVector locationdifferent = GetOwningComponent()->GetComponentRotation().UnrotateVector(Velocity * UGameplayStatics::GetWorldDeltaSeconds(this));
 
 	/*3.通过速度方向的不同给传进来的引用Location在旋转方向上进行赋值*/
 	LocalLocation = UKismetMathLibrary::RotateAngleAxis(LocalLocation - locationdifferent, rotationdifferent.Yaw, FVector(0.f, 0.f, -1.f));
 	
-	/*4.给LocalLocation进行赋值*/
+	/*4.给LocalRotation进行赋值*/
 	LocalRotation = UKismetMathLibrary::NormalizedDeltaRotator(LocalRotation, rotationdifferent);
 }
 
 void UStarveCharacterAnimInstance::SetFootOffsets(FName EnableFootIKCurve, FName IK_FootBone, FName RootBone, FVector& CurrentLocationTarget, FVector& CurrentLocationOffset, FRotator& CurrentRotationOffset)
 {
-	float enablefootik = GetCurveValue(EnableFootIKCurve);
-	if (enablefootik > 0.f) {
-		/*1.从脚部位置向下追踪以找到几何体。如果曲面是可行走的，保存“碰撞位置”和“法线”*/
+	float curvevalue = GetCurveValue(EnableFootIKCurve);
+	if (curvevalue > 0.f) {
+		
 		USkeletalMeshComponent* owncomp = GetOwningComponent();
-		FVector footikbonelocation = owncomp->GetSocketLocation(IK_FootBone);
-		FVector rootbonelocation = owncomp->GetSocketLocation(RootBone);
 		/*取脚步位置的XY值，取root骨骼的Z值表示双脚的位置*/
-		FVector ikfootfloorlocation = FVector(footikbonelocation.X, footikbonelocation.Y, rootbonelocation.Z);
+		FVector linestart = owncomp->GetSocketLocation(IK_FootBone);
+		FVector lineend = owncomp->GetSocketLocation(RootBone);
+
+		FVector ikfootfloorlocation = FVector(linestart.X, linestart.Y, lineend.Z);
 
 		/*进行射线检测*/
-		FVector linestart = ikfootfloorlocation + FVector(0.f, 0.f, IKTraceDistanceAboveFoot);
-		FVector lineend = ikfootfloorlocation - FVector(0.f, 0.f, IKTraceDistanceBlowFoot);
+		linestart = ikfootfloorlocation + FVector(0.f, 0.f, IKTraceDistanceAboveFoot);
+		lineend = ikfootfloorlocation - FVector(0.f, 0.f, IKTraceDistanceBlowFoot);
+		EDrawDebugTrace::Type debugtrace = GetDebugTraceType(EDrawDebugTrace::ForOneFrame);
 		FHitResult hitresult;/*保存碰撞信息*/
-		FVector impactpoint;/*碰撞点的位置*/
-		FVector impactnormal;/*碰撞点的法线*/
-		FRotator targetrotationoffset;/*目标骨骼的目标旋转角度*/
+
+		//FVector impactpoint;/*碰撞点的位置*/
+		//FVector impactnormal;/*碰撞点的法线*/
+		//上面两个变量使用linestart和lineend代替，重复利用变量，减少内存
+		
+		FRotator targetrotationoffset(0.f);/*目标骨骼的目标旋转角度*/
+
+		/*1.从脚部位置向下追踪以找到几何体。如果曲面是可行走的，保存“碰撞位置”和“法线”*/
 		bool bhit = UKismetSystemLibrary::LineTraceSingle(this, linestart, lineend, TraceTypeQuery1,false, {}, 
-			EDrawDebugTrace::ForOneFrame,hitresult, true,FLinearColor::Red,FLinearColor::Blue);
+			debugtrace,hitresult, true);
 
 		if (CharacterRef->GetCharacterMovement()->IsWalkable(hitresult)) {
-			impactpoint = hitresult.ImpactPoint;
-			impactnormal = hitresult.ImpactNormal;
-			/*CurrentLocationTarget赋值*/
-			CurrentLocationTarget = (impactnormal * FootHeight + impactpoint) - (ikfootfloorlocation + FVector(0.f, 0.f, 1.f) * FootHeight);
-			/*反正切获得角度*/
-			float rolldegree = UKismetMathLibrary::DegAtan2(impactnormal.Y, impactnormal.Z);
-			float pitchdegree = -1.f * UKismetMathLibrary::DegAtan2(impactnormal.X, impactnormal.Z);
+			linestart = hitresult.ImpactPoint;
+			lineend = hitresult.ImpactNormal;
+			/*CurrentLocationTarget赋值，通过碰撞点与预期点位置的偏差进行赋值*/
+			CurrentLocationTarget = (lineend * FootHeight + linestart) - (ikfootfloorlocation + FVector(0.f, 0.f, 1.f) * FootHeight);
+			/*反正切获得Rotation角度*/
+			float rolldegree = UKismetMathLibrary::DegAtan2(lineend.Y, lineend.Z);
+			float pitchdegree = -1.f * UKismetMathLibrary::DegAtan2(lineend.X, lineend.Z);
 			targetrotationoffset = FRotator(pitchdegree, 0.f, rolldegree);
 		}
 	
 		/*2.将“当前位置偏移”插值到新的目标值。根据新目标是高于还是低于当前目标，以不同的速度进行插值。防止脚步瞬移*/
-		if (CurrentLocationOffset.Z > CurrentLocationTarget.Z) {
-			CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, 30.f);
-		}
-		else {
-			CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, 15.f);
-		}
-	
+		curvevalue = CurrentLocationOffset.Z > CurrentLocationTarget.Z ? 30.f : 15.f;
+		CurrentLocationOffset = FMath::VInterpTo(CurrentLocationOffset, CurrentLocationTarget, DeltaTimeX, curvevalue);
+
 		/*3.将当前旋转偏移赋值到目标旋转*/
 		CurrentRotationOffset = FMath::RInterpTo(CurrentRotationOffset, targetrotationoffset, DeltaTimeX, 30.f);
 	}
@@ -807,13 +772,13 @@ void UStarveCharacterAnimInstance::SetFootOffsets(FName EnableFootIKCurve, FName
 
 void UStarveCharacterAnimInstance::SetPelvisIKOffset(FVector FootOffset_L_Target, FVector FootOffset_R_Target)
 {
-	/*取两者的加权平均作为PelvisAlpha*/
+	/*对左右脚Enable_FootIK的曲线值取平均值作为PelvisAlpha*/
 	PelvisAlpha = (GetCurveValue(FName("Enable_FootIK_L")) + GetCurveValue(FName("Enable_FootIK_R"))) / 2;
 	if (PelvisAlpha > 0.f) {
 		/*1.根据左右脚偏移的高度来选取合适的PelvisOffset，选取较低的那个*/
 		FVector pelvistarget = FootOffset_L_Target.Z < FootOffset_R_Target.Z ? FootOffset_L_Target : FootOffset_R_Target;
 		
-		/*2.比较pelvistarget跟PelvisOffset的Z值来角色不同的差值速度*/
+		/*2.比较pelvistarget跟PelvisOffset的Z值来决定不同的插值速度*/
 		float interpspeed = pelvistarget.Z > PelvisOffset.Z ? 10.f : 15.f;
 		PelvisOffset = FMath::VInterpTo(PelvisOffset, pelvistarget, DeltaTimeX, interpspeed);
 	}
@@ -950,7 +915,7 @@ float UStarveCharacterAnimInstance::CalculateLandPrediction()
 		FHitResult hitresult;
 
 		UKismetSystemLibrary::CapsuleTraceSingleByProfile(this,start,end,capsule->GetScaledCapsuleRadius(),
-			capsule->GetScaledCapsuleHalfHeight(), FName("Starve_Character"), false, {},EDrawDebugTrace::ForOneFrame,
+			capsule->GetScaledCapsuleHalfHeight(), FName("StarveCharacter"), false, {},EDrawDebugTrace::ForOneFrame,
 			hitresult,true);
 
 		if (CharacterRef->GetCharacterMovement()->IsWalkable(hitresult) && hitresult.bBlockingHit) {
@@ -991,10 +956,6 @@ void UStarveCharacterAnimInstance::AnimNotify_RollToIdle(UAnimNotify* Notify)
 	PlayTransition(FDynamicMontageParams(lefttransitionanimtion, 0.2f, 0.2f, 1.5f, 0.2f));
 }
 
-float UStarveCharacterAnimInstance::GetAnimCurveCompact(FName CurveName)
-{
-	return GetCurveValue(CurveName);
-}
 
 void UStarveCharacterAnimInstance::AnimNotify_Reset_GroundedEntryState(UAnimNotify* Notify)
 {
@@ -1066,4 +1027,12 @@ void UStarveCharacterAnimInstance::UpdateRagdollValues()
 {
 	FVector Ragdollvelocity = GetOwningComponent()->GetPhysicsLinearVelocity(FName("root"));
 	FlailRate = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 1000.f), FVector2D(0.f, 1.f), Ragdollvelocity.Size());
+}
+
+EDrawDebugTrace::Type UStarveCharacterAnimInstance::GetDebugTraceType(EDrawDebugTrace::Type ShowTraceType)
+{
+	if (Cast<IStarve_ControllerInterface>(UGameplayStatics::GetPlayerController(this, 0))->I_ShowTraces()) {
+		return ShowTraceType;
+	}
+	return EDrawDebugTrace::None;
 }

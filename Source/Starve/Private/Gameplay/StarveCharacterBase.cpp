@@ -1081,7 +1081,7 @@ bool AStarveCharacterBase::CapsuleHasRoomCheck(UCapsuleComponent* Capsule, const
 	FHitResult hitresult;
 
 	UKismetSystemLibrary::SphereTraceSingleByProfile(this, start, end, radius,
-		FName("Starve_Character"), false, {}, DegugType, hitresult, true, FLinearColor(0.130706f,0.896269f,0.144582f,1), FLinearColor(0.932733f,0.29136f,1,1), 1.f);
+		FName("StarveCharacter"), false, {}, DegugType, hitresult, true, FLinearColor(0.130706f,0.896269f,0.144582f,1), FLinearColor(0.932733f,0.29136f,1,1), 1.f);
 	
 	//如果没有碰撞到物体就代表可以该地方可以容纳角色
 	return !(hitresult.bBlockingHit || hitresult.bStartPenetrating);
